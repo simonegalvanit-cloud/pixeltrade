@@ -1,0 +1,716 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>pixeltrade docs</title>
+<meta name="description" content="Documentation for pixeltrade: how it works, leverage, margin, funding, liquidations, fees and risks.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;500;600;700&family=Silkscreen&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --beige:#EDE5D3; --beige-2:#E2D8C1; --paper:#F7F2E7; --ink:#121110; --muted:#5C5548; --soft:#CBBFA6;
+  --long:#1E4FD8; --short:#C2410C;
+  --pixel:"Pixelify Sans","Silkscreen",ui-monospace,monospace;
+  --tiny:"Silkscreen","Pixelify Sans",ui-monospace,monospace;
+  --mono:"DM Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --head:64px;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:calc(var(--head) + 24px + env(safe-area-inset-top,0px))}
+body{margin:0;background:var(--beige);color:var(--ink);font-family:var(--mono);font-size:16px;line-height:1.7;-webkit-font-smoothing:antialiased}
+a{color:inherit}
+::selection{background:var(--ink);color:var(--beige)}
+:focus-visible{outline:3px solid var(--long);outline-offset:2px}
+.skip{position:absolute;left:-9999px;top:8px;background:var(--ink);color:var(--beige);padding:8px 12px;z-index:100}
+.skip:focus{left:8px}
+svg.px{shape-rendering:crispEdges}
+
+/* header */
+.top{position:sticky;top:0;z-index:40;padding-top:env(safe-area-inset-top,0px);background:var(--beige);border-bottom:3px solid var(--ink)}
+.top-in{height:var(--head);display:flex;align-items:center;gap:16px;padding:0 clamp(16px,3vw,32px);max-width:1440px;margin:0 auto}
+.logo{display:flex;align-items:center;gap:10px;font:700 22px var(--pixel);text-decoration:none}
+.logo svg{width:26px;height:26px}
+.logo em{font:400 11px var(--tiny);font-style:normal;background:var(--ink);color:var(--beige);padding:3px 7px;margin-left:4px}
+.top-links{margin-left:auto;display:flex;gap:4px;align-items:center;font:400 12px var(--tiny)}
+.top-links a{text-decoration:none;padding:8px 12px}
+.top-links a:hover{background:var(--ink);color:var(--beige)}
+.btn{display:inline-flex;align-items:center;gap:8px;min-height:42px;padding:0 16px;font:600 15px var(--pixel);border:3px solid var(--ink);background:var(--ink);color:var(--beige);box-shadow:4px 4px 0 var(--long);text-decoration:none;cursor:pointer;white-space:nowrap}
+.btn:active{transform:translate(4px,4px);box-shadow:none}
+.menu-btn{display:none;background:var(--paper);border:3px solid var(--ink);min-height:42px;padding:0 12px;font:400 11px var(--tiny);cursor:pointer}
+
+/* layout */
+.layout{max-width:1440px;margin:0 auto;display:grid;grid-template-columns:270px minmax(0,1fr) 220px;gap:0}
+.side{position:sticky;top:calc(var(--head) + 3px + env(safe-area-inset-top,0px));height:calc(100vh - var(--head) - 3px - env(safe-area-inset-top,0px));overflow-y:auto;border-right:3px solid var(--ink);padding:24px 18px 40px}
+.search{position:relative;margin-bottom:22px}
+.search input{width:100%;min-height:44px;border:3px solid var(--ink);background:var(--paper);font:400 14px var(--mono);padding:0 12px 0 36px;color:var(--ink);box-shadow:3px 3px 0 var(--ink)}
+.search input:focus{outline:none;box-shadow:3px 3px 0 var(--long)}
+.search svg{position:absolute;left:11px;top:13px;width:16px;height:16px}
+.search kbd{position:absolute;right:10px;top:12px;font:400 10px var(--tiny);color:var(--muted);border:2px solid var(--soft);padding:1px 5px}
+.nav-group{margin-bottom:20px}
+.nav-group h4{margin:0 0 6px;font:400 11px var(--tiny);color:var(--muted)}
+.nav-group a{display:flex;align-items:center;gap:8px;padding:6px 10px;text-decoration:none;font-size:14px;border-left:3px solid transparent}
+.nav-group a:hover{background:var(--beige-2)}
+.nav-group a.on{border-left-color:var(--long);background:var(--paper);font-weight:500}
+.nav-group a .tag{margin-left:auto;font:400 9px var(--tiny);background:var(--beige-2);padding:1px 5px}
+.no-res{font-size:13px;color:var(--muted);display:none}
+
+main{padding:40px clamp(18px,5vw,64px) 120px;min-width:0}
+.doc{max-width:760px}
+.toc{position:sticky;top:calc(var(--head) + 3px + env(safe-area-inset-top,0px));height:calc(100vh - var(--head) - 3px);overflow-y:auto;padding:40px 18px 40px 8px}
+.toc h4{margin:0 0 10px;font:400 11px var(--tiny);color:var(--muted)}
+.toc a{display:block;font-size:13px;padding:4px 0 4px 12px;border-left:2px solid var(--soft);text-decoration:none;color:var(--muted)}
+.toc a:hover{color:var(--ink)}
+.toc a.on{border-left-color:var(--ink);color:var(--ink)}
+.toc .back{margin-top:18px;border:0;padding-left:0;font:400 11px var(--tiny)}
+
+@media (max-width:1200px){.layout{grid-template-columns:260px minmax(0,1fr)}.toc{display:none}}
+@media (max-width:900px){
+  .layout{grid-template-columns:minmax(0,1fr)}
+  .menu-btn{display:inline-flex;align-items:center}
+  .top-links a.hide-sm{display:none}
+  .side{position:fixed;left:0;top:calc(var(--head) + 3px + env(safe-area-inset-top,0px));bottom:0;height:auto;width:min(320px,88vw);background:var(--beige);z-index:35;transform:translateX(-105%);transition:transform .25s steps(5);box-shadow:6px 0 0 var(--ink)}
+  .side.open{transform:none}
+  .scrim{position:fixed;inset:0;background:rgba(18,17,16,.35);z-index:30;display:none}
+  .scrim.open{display:block}
+}
+@media (max-width:520px){ .top-links .btn{display:none} }
+
+/* content */
+.hero-doc{border:3px solid var(--ink);box-shadow:6px 6px 0 var(--ink);background:var(--paper);padding:28px;margin-bottom:56px;position:relative;overflow:hidden}
+.hero-doc h1{font:700 clamp(40px,6vw,68px)/.95 var(--pixel);margin:0 0 12px}
+.hero-doc h1 span{display:inline-block;width:.45em;height:.1em;background:var(--ink);margin-left:.05em;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.hero-doc p{margin:0;color:var(--muted);max-width:52ch}
+.hero-doc .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}
+.chip{font:400 10px var(--tiny);padding:4px 8px;border:2px solid var(--ink);background:var(--beige)}
+.chip.live{background:var(--long);color:#fff;border-color:var(--long)}
+section.sec{padding-top:8px;margin-bottom:72px}
+.eyebrow{font:400 11px var(--tiny);color:var(--muted);display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.eyebrow::before{content:"";width:10px;height:10px;background:var(--ink)}
+h2{font:700 clamp(30px,4vw,42px)/1.05 var(--pixel);margin:0 0 18px}
+h3{font:600 22px/1.2 var(--pixel);margin:36px 0 10px}
+h2 a.anchor,h3 a.anchor{text-decoration:none;color:var(--soft);margin-left:8px;font-size:.7em;opacity:0}
+h2:hover a.anchor,h3:hover a.anchor,a.anchor:focus{opacity:1}
+p{margin:0 0 14px}
+.lead{font-size:18px;color:var(--ink)}
+ul,ol{padding-left:22px;margin:0 0 14px}
+li{margin-bottom:6px}
+li::marker{color:var(--muted)}
+strong{font-weight:500;background:linear-gradient(transparent 62%, rgba(30,79,216,.18) 62%)}
+code{font:500 13.5px var(--mono);background:var(--paper);border:1px solid var(--soft);padding:1px 6px}
+.pre{position:relative;margin:0 0 18px}
+.pre pre{margin:0;background:var(--ink);color:var(--beige);padding:16px 18px;overflow-x:auto;font:400 13.5px/1.6 var(--mono);border:3px solid var(--ink);box-shadow:5px 5px 0 var(--soft)}
+.pre pre code{background:none;border:0;padding:0;color:inherit}
+.copy{position:absolute;top:8px;right:8px;font:400 10px var(--tiny);background:var(--beige);color:var(--ink);border:0;padding:6px 8px;cursor:pointer;min-height:28px}
+.copy:hover{background:#fff}
+.call{border:3px solid var(--ink);background:var(--paper);padding:14px 16px 14px 18px;margin:0 0 18px;position:relative}
+.call::before{content:attr(data-label);position:absolute;top:-11px;left:12px;font:400 10px var(--tiny);background:var(--ink);color:var(--beige);padding:3px 8px}
+.call p:last-child,.call ul:last-child{margin-bottom:0}
+.call.warn{border-color:var(--short)}
+.call.warn::before{background:var(--short);color:#fff}
+.call.plan{border-style:dashed}
+.call.plan::before{background:var(--beige-2);color:var(--ink);border:2px solid var(--ink)}
+.tbl{overflow-x:auto;margin:0 0 18px;border:3px solid var(--ink);background:var(--paper)}
+table{border-collapse:collapse;width:100%;min-width:480px;font-size:14px}
+th,td{padding:10px 14px;text-align:left;border-bottom:2px dashed var(--soft);vertical-align:top}
+th{font:400 10px var(--tiny);color:var(--muted);background:var(--beige-2);border-bottom:3px solid var(--ink)}
+tr:last-child td{border-bottom:0}
+td.r,th.r{text-align:right;font-variant-numeric:tabular-nums}
+.src{font-size:12px;color:var(--muted);margin-top:-4px}
+.src a{color:var(--muted)}
+.src::before{content:"↗ ";}
+
+/* flow diagram */
+.flow{display:grid;grid-template-columns:1fr auto 1fr auto 1.3fr;align-items:stretch;gap:10px;margin:8px 0 22px}
+.node{border:3px solid var(--ink);background:var(--paper);padding:14px;box-shadow:4px 4px 0 var(--ink);display:flex;flex-direction:column;gap:6px}
+.node b{font:600 17px var(--pixel)}
+.node small{font-size:12.5px;color:var(--muted);line-height:1.5}
+.node.dark{background:var(--ink);color:var(--beige);box-shadow:4px 4px 0 var(--long)}
+.node.dark small{color:#B8AE98}
+.node ul{margin:0;padding-left:16px;font-size:12.5px;color:#B8AE98}
+.arrow{align-self:center;font:700 22px var(--pixel)}
+@media (max-width:700px){.flow{grid-template-columns:1fr}.arrow{transform:rotate(90deg);justify-self:center}}
+
+/* steps */
+.steps{list-style:none;padding:0;counter-reset:s;margin:0 0 18px}
+.steps li{counter-increment:s;position:relative;padding:0 0 18px 52px;margin:0}
+.steps li::before{content:counter(s);position:absolute;left:0;top:-2px;width:34px;height:34px;display:grid;place-items:center;background:var(--ink);color:var(--beige);font:700 17px var(--pixel)}
+.steps li::after{content:"";position:absolute;left:16px;top:36px;bottom:2px;width:2px;background:repeating-linear-gradient(var(--ink) 0 4px,transparent 4px 8px)}
+.steps li:last-child::after{display:none}
+.steps b{display:block;font:600 17px var(--pixel);margin-bottom:2px}
+
+/* calculator */
+.calc{border:3px solid var(--ink);box-shadow:6px 6px 0 var(--ink);background:var(--ink);color:var(--beige);padding:18px;margin:8px 0 22px}
+.calc h4{margin:0 0 12px;font:400 11px var(--tiny);color:#B8AE98}
+.calc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px}
+.calc label{display:flex;flex-direction:column;gap:4px;font:400 10px var(--tiny);color:#B8AE98}
+.calc input,.calc select{min-height:44px;background:#1D1B17;border:2px solid #4A463C;color:var(--beige);font:500 15px var(--mono);padding:0 10px;width:100%}
+.calc input:focus,.calc select:focus{outline:none;border-color:var(--beige)}
+.calc-out{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;border-top:2px dashed #3A372F;padding-top:14px}
+.calc-out div{display:flex;flex-direction:column}
+.calc-out span{font:400 10px var(--tiny);color:#B8AE98}
+.calc-out b{font:700 22px var(--pixel)}
+.calc-out b.liq{color:#FF9259}
+.calc-note{font-size:12px;color:#B8AE98;margin:12px 0 0}
+
+/* faq + glossary */
+details{border:3px solid var(--ink);background:var(--paper);margin-bottom:10px}
+summary{cursor:pointer;list-style:none;padding:14px 16px;font:600 17px var(--pixel);display:flex;justify-content:space-between;gap:12px;min-height:48px;align-items:center}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";font:700 20px var(--pixel)}
+details[open] summary::after{content:"−"}
+details[open] summary{border-bottom:2px dashed var(--soft)}
+details > div{padding:14px 16px 4px}
+dl.gloss{margin:0;display:grid;grid-template-columns:minmax(120px,190px) 1fr;border:3px solid var(--ink);background:var(--paper)}
+dl.gloss dt,dl.gloss dd{padding:10px 14px;border-bottom:2px dashed var(--soft);margin:0}
+dl.gloss dt{font:600 15px var(--pixel)}
+dl.gloss dd{font-size:14px}
+dl.gloss dt:nth-last-of-type(1),dl.gloss dd:last-of-type{border-bottom:0}
+@media (max-width:560px){dl.gloss{grid-template-columns:1fr}dl.gloss dt{border-bottom:0;padding-bottom:0}}
+.log{border-left:3px solid var(--ink);padding-left:18px}
+.log h3{margin-top:0}
+.log time{font:400 11px var(--tiny);color:var(--muted)}
+
+.doc-foot{border-top:3px solid var(--ink);margin-top:40px;padding-top:20px;font-size:13px;color:var(--muted);display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+mark{background:#FFE58A;color:var(--ink)}
+@media (prefers-reduced-motion: reduce){html{scroll-behavior:auto}.hero-doc h1 span{animation:none}.side{transition:none}}
+</style>
+</head>
+<body>
+<a class="skip" href="#article">Skip to content</a>
+
+<header class="top">
+  <div class="top-in">
+    <button class="menu-btn" id="menu-btn" type="button" aria-expanded="false" aria-controls="side">☰ menu</button>
+    <a class="logo" href="pixeltrade.html" aria-label="pixeltrade home">
+      <svg class="px" viewBox="0 0 15 15" aria-hidden="true">
+        <path d="M2 1h8v1H2zM10 2h1v1h-1zM11 3h1v1h-1zM12 4h1v10h-1zM2 14h10v-1H2zM1 2h1v12H1z" fill="#121110"/>
+        <path d="M2 2h8v1h1v1h1v9H2z" fill="#F7F2E7"/><path d="M10 2h1v2h2v1h-3z" fill="#121110"/>
+        <path d="M3 11h2v1H3zM5 10h2v1H5zM7 9h1v1H7zM8 8h2v1H8zM10 6h1v2h-1z" fill="#1E4FD8"/>
+      </svg>
+      pixeltrade<em>docs</em>
+    </a>
+    <nav class="top-links" aria-label="Site">
+      <a class="hide-sm" href="pixeltrade.html#markets">Markets</a>
+      <a class="hide-sm" href="pixeltrade.html#learn">Tutorial</a>
+      <a class="btn" href="pixeltrade.html">Open app ▸</a>
+    </nav>
+  </div>
+</header>
+
+<div class="scrim" id="scrim"></div>
+<div class="layout">
+  <aside class="side" id="side" aria-label="Docs navigation">
+    <div class="search">
+      <svg class="px" viewBox="0 0 8 8" aria-hidden="true"><path d="M2 0h3v1H2zM1 1h1v1H1zM5 1h1v1H5zM0 2h1v3H0zM6 2h1v3H6zM1 5h1v1H1zM5 5h1v1H5zM2 6h3v-1H2zM6 6h1v1H6zM7 7h1v1H7z" fill="#121110"/></svg>
+      <input id="q" type="search" placeholder="Search docs" aria-label="Search docs" autocomplete="off">
+      <kbd>/</kbd>
+    </div>
+    <nav id="nav"></nav>
+    <p class="no-res" id="no-res">No sections match.</p>
+  </aside>
+
+  <main id="article">
+    <div class="doc" id="doc">
+
+      <div class="hero-doc">
+        <h1>pixeltrade docs<span aria-hidden="true"></span></h1>
+        <p>How pixeltrade works, how perpetual futures on it behave, what it costs, and what can go wrong. Written in plain language, with the exact formulas where they matter.</p>
+        <div class="chips"><span class="chip live">v0.1 private preview</span><span class="chip">updated Oct 2, 2026</span></div>
+      </div>
+
+      <!-- ============ GETTING STARTED ============ -->
+      <section class="sec" id="introduction" data-group="Getting started" data-title="Introduction">
+        <div class="eyebrow">Getting started</div>
+        <h2>Introduction</h2>
+        <p class="lead">pixeltrade is a trading interface for perpetual futures that settle fully onchain.</p>
+        <p>Every order you place through pixeltrade goes to <strong>Hyperliquid</strong>, a blockchain built for trading that runs its order book, margin system and settlement onchain. pixeltrade is the screen you trade on. Hyperliquid is where the trade actually happens.</p>
+        <h3 id="what-pixeltrade-is">What pixeltrade is and isn't</h3>
+        <ul>
+          <li><strong>It is</strong> an interface: charts, an order book view, an order panel, positions, and tools that help you understand leverage and risk.</li>
+          <li><strong>It isn't</strong> a custodian. pixeltrade never holds your funds. Your collateral sits in your own Hyperliquid account, controlled by your wallet.</li>
+          <li><strong>It isn't</strong> the counterparty to your trades. Your orders match against other traders on Hyperliquid's order book.</li>
+          <li><strong>It doesn't</strong> run its own matching engine, price oracle or liquidation system. Those are Hyperliquid's, and the rules are the same for every interface.</li>
+        </ul>
+        <h3 id="status">Current status</h3>
+        <div class="call warn" data-label="Preview">
+          <p>Trading through pixeltrade isn't live yet. The site currently shows live market data from Hyperliquid's public API, a practice order panel with a demo balance, and a trade simulator. Nothing you do on pixeltrade today places a real order.</p>
+        </div>
+        <p>The trading mechanics in these docs (margin, funding, liquidations, fees) are Hyperliquid's rules, which every pixeltrade order will follow. Anything specific to pixeltrade that isn't built yet is marked <span class="chip" style="font-size:9px">planned</span> and may change before launch.</p>
+      </section>
+
+      <section class="sec" id="how-it-works" data-group="Getting started" data-title="How it works">
+        <div class="eyebrow">Getting started</div>
+        <h2>How it works</h2>
+        <div class="flow" aria-label="Order flow diagram">
+          <div class="node"><b>Your wallet</b><small>Holds your keys. Signs every action. Nothing moves without your signature.</small></div>
+          <div class="arrow" aria-hidden="true">▸</div>
+          <div class="node"><b>pixeltrade</b><small>Builds the order, shows you the cost and risk, asks your wallet to sign, then submits it.</small></div>
+          <div class="arrow" aria-hidden="true">▸</div>
+          <div class="node dark"><b>Hyperliquid</b><ul><li>onchain order book</li><li>margin &amp; clearinghouse</li><li>oracle &amp; mark price</li><li>funding &amp; liquidations</li></ul></div>
+        </div>
+        <h3 id="lifecycle">The life of an order</h3>
+        <ol class="steps">
+          <li><b>You set it up</b>Market, side, size, leverage, margin mode and optional take profit or stop loss in the order panel.</li>
+          <li><b>pixeltrade shows the numbers</b>Order value, margin required, estimated liquidation price and fees, before anything is signed.</li>
+          <li><b>Your wallet signs</b>The signed order is sent to Hyperliquid's API. Trading actions are gasless.</li>
+          <li><b>Hyperliquid matches it</b>Against resting orders on the onchain book. The fill, your position and your margin are recorded onchain.</li>
+          <li><b>pixeltrade shows the result</b>Your position, live PnL, liquidation price and funding, read straight from Hyperliquid.</li>
+        </ol>
+        <h3 id="data">Where the data comes from</h3>
+        <p>Prices, order books, candles, funding rates, open interest and volume on pixeltrade come from Hyperliquid's public info API and websocket. pixeltrade doesn't generate or adjust any of it. The tutorial and the trade simulator on the homepage are the only places with demo numbers, and both are labelled.</p>
+      </section>
+
+      <section class="sec" id="quick-start" data-group="Getting started" data-title="Quick start">
+        <div class="eyebrow">Getting started</div>
+        <h2>Quick start</h2>
+        <div class="call plan" data-label="Planned">
+          <p>This is the flow for when trading opens. Steps 1 and 2 you can do today.</p>
+        </div>
+        <ol class="steps">
+          <li><b>Get an EVM wallet</b>Rabby, MetaMask, Coinbase Wallet or any WalletConnect wallet. Write down your recovery phrase offline and never share it.</li>
+          <li><b>Get USDC</b>USDC is the collateral for perps. Hyperliquid accepts USDC from Arbitrum and several other chains. You'll need a little of the source chain's gas token for the deposit itself; trading after that is gasless.</li>
+          <li><b>Connect to pixeltrade</b>Click Connect wallet and approve the connection.</li>
+          <li><b>Enable trading</b>Sign one gasless message so pixeltrade can submit orders for your account.</li>
+          <li><b>Approve the builder fee</b>A one-time signature that sets the maximum fee pixeltrade may charge. See <a href="#fees">Fees</a>.</li>
+          <li><b>Deposit and trade</b>Deposit USDC to your Hyperliquid account, pick a market, set leverage, place your first order.</li>
+        </ol>
+        <div class="call" data-label="Tip">
+          <p>New to leverage? Run through the <a href="pixeltrade.html#learn">interactive tutorial</a> and the <a href="pixeltrade.html#simulate">trade simulator</a> first. They use a demo balance.</p>
+        </div>
+      </section>
+
+      <!-- ============ TRADING ============ -->
+      <section class="sec" id="perps" data-group="Trading" data-title="Perpetual futures">
+        <div class="eyebrow">Trading</div>
+        <h2>Perpetual futures</h2>
+        <p class="lead">A perpetual future ("perp") lets you bet on an asset's price going up or down without owning the asset, and without an expiry date.</p>
+        <ul>
+          <li><strong>Long</strong>: you profit if the price rises.</li>
+          <li><strong>Short</strong>: you profit if the price falls.</li>
+          <li>Collateral is USDC. Profits and losses are settled in USDC.</li>
+          <li>There's no expiry. A <a href="#funding">funding</a> payment every hour keeps the perp price close to the real asset price.</li>
+        </ul>
+        <h3 id="pnl">How profit and loss work</h3>
+        <div class="pre"><button class="copy" type="button">copy</button><pre><code>PnL (long)  = size × (exit price − entry price)
+PnL (short) = size × (entry price − exit price)
+
+size is in coins, e.g. 0.01 BTC</code></pre></div>
+        <p>Example: you long 0.01 BTC at $100,000. BTC rises to $104,000. Your PnL is 0.01 × 4,000 = <strong>+$40</strong>, before fees and funding. Leverage doesn't change this number. It changes how much margin you had to put up to get it.</p>
+        <p>While a position is open, its PnL is <em>unrealized</em>. It becomes realized when you close.</p>
+      </section>
+
+      <section class="sec" id="leverage" data-group="Trading" data-title="Leverage & margin">
+        <div class="eyebrow">Trading</div>
+        <h2>Leverage &amp; margin</h2>
+        <h3 id="initial-margin">Initial margin</h3>
+        <p>Margin is the collateral locked to back a position. The margin to open a position is:</p>
+        <div class="pre"><button class="copy" type="button">copy</button><pre><code>initial margin = position size × mark price / leverage</code></pre></div>
+        <p>So $1,000 of BTC at 10x needs $100 of margin. At 20x it needs $50. Leverage can be any whole number from 1 up to the market's maximum, which differs per asset and is shown in the leverage picker.</p>
+        <ul>
+          <li>Leverage is only checked when you open a position. After that, you're responsible for watching your margin.</li>
+          <li>You can increase the leverage of an open position without closing it.</li>
+        </ul>
+        <p class="src"><a href="https://hyperliquid.gitbook.io/hyperliquid-docs/trading/margining" target="_blank" rel="noopener">Hyperliquid docs: Margining</a></p>
+        <h3 id="cross-isolated">Cross vs isolated</h3>
+        <div class="tbl"><table>
+          <thead><tr><th>&nbsp;</th><th>Cross</th><th>Isolated</th></tr></thead>
+          <tbody>
+            <tr><td><b>Collateral</b></td><td>Shared across all your cross positions</td><td>Only the margin assigned to this position</td></tr>
+            <tr><td><b>Unrealized profit</b></td><td>Usable as margin for new positions</td><td>Added to this position's margin</td></tr>
+            <tr><td><b>Add / remove margin</b></td><td>No (margin is shared)</td><td>Yes, after opening</td></tr>
+            <tr><td><b>If liquidated</b></td><td>Can affect all cross positions and cross margin</td><td>Only this position and its margin</td></tr>
+            <tr><td><b>Leverage setting</b></td><td>Doesn't change the liquidation price, only how much collateral is used</td><td>Directly moves the liquidation price</td></tr>
+          </tbody>
+        </table></div>
+        <h3 id="withdrawing-margin">Withdrawing margin</h3>
+        <p>Any action that takes margin away from positions, other than trading (for example a withdrawal or removing isolated margin), must leave at least:</p>
+        <div class="pre"><button class="copy" type="button">copy</button><pre><code>max(initial margin required, 10% × total position value)</code></pre></div>
+        <h3 id="maintenance">Maintenance margin</h3>
+        <p>Maintenance margin is the minimum you must keep to avoid liquidation. On Hyperliquid it's half of the initial margin at the market's max leverage:</p>
+        <div class="pre"><button class="copy" type="button">copy</button><pre><code>maintenance margin rate = 1 / (2 × max leverage)
+
+40x max → 1.25% of position value
+20x max → 2.5%
+3x max  → 16.7%</code></pre></div>
+        <p>Some markets use margin tiers, where the requirement steps up as a position gets larger.</p>
+      </section>
+
+      <section class="sec" id="order-types" data-group="Trading" data-title="Order types">
+        <div class="eyebrow">Trading</div>
+        <h2>Order types</h2>
+        <p>pixeltrade's order panel covers market, limit and TP/SL orders, the same set used in the homepage tutorial. Hyperliquid supports more, listed here for reference.</p>
+        <div class="tbl"><table>
+          <thead><tr><th>Type</th><th>What it does</th></tr></thead>
+          <tbody>
+            <tr><td><b>Market</b></td><td>Fills immediately at the best available prices in the book.</td></tr>
+            <tr><td><b>Limit</b></td><td>Fills only at your price or better. Rests in the book until filled or cancelled.</td></tr>
+            <tr><td><b>Stop market / stop limit</b></td><td>Becomes a market or limit order once the price reaches your trigger.</td></tr>
+            <tr><td><b>Take market / take limit</b></td><td>Like a stop, but for the profit side: triggers when price moves in your favour.</td></tr>
+            <tr><td><b>Scale</b></td><td>Several limit orders spread across a price range.</td></tr>
+            <tr><td><b>TWAP</b></td><td>Splits a large order into smaller pieces sent at intervals (at least 30 seconds apart), each with max 3% slippage.</td></tr>
+            <tr><td><b>Trailing stop</b></td><td>A stop that follows the best mark price reached and triggers when price retraces by your chosen distance.</td></tr>
+          </tbody>
+        </table></div>
+        <h3 id="order-options">Order options</h3>
+        <ul>
+          <li><b>Reduce only</b>: can only shrink or close a position, never open or flip one.</li>
+          <li><b>Good til cancel (GTC)</b>: rests in the book until filled or cancelled.</li>
+          <li><b>Post only (ALO)</b>: only added to the book as a resting order; it's rejected rather than filling immediately.</li>
+          <li><b>Immediate or cancel (IOC)</b>: whatever can't fill right away is cancelled.</li>
+        </ul>
+        <h3 id="maker-taker">Maker and taker</h3>
+        <p>An order that rests in the book and gets filled later is a <strong>maker</strong> order. One that fills immediately against resting orders is a <strong>taker</strong> order. Market orders are always taker. Takers pay higher fees than makers.</p>
+        <p class="src"><a href="https://hyperliquid.gitbook.io/hyperliquid-docs/trading/order-types" target="_blank" rel="noopener">Hyperliquid docs: Order types</a></p>
+      </section>
+
+      <section class="sec" id="tp-sl" data-group="Trading" data-title="Take profit & stop loss">
+        <div class="eyebrow">Trading</div>
+        <h2>Take profit &amp; stop loss</h2>
+        <p class="lead">A take profit (TP) closes your position at a target. A stop loss (SL) closes it before a loss gets bigger.</p>
+        <ul>
+          <li>TP/SL orders trigger on the <a href="#prices">mark price</a>, not the last trade.</li>
+          <li>By default they're market orders with a 10% slippage tolerance once triggered.</li>
+          <li>You can set a limit price instead to control slippage. The trade-off: in a fast move, a limit TP/SL can trigger and then sit unfilled.</li>
+        </ul>
+        <h3 id="tpsl-position">On a position vs on an order</h3>
+        <p><b>Set on an open position</b>: by default it closes the whole position when triggered. If you set a specific size, it stays that size even if the position changes.</p>
+        <p><b>Set on a new order</b> (attached TP/SL): it's sized to that order and only becomes active once the order fully fills. If you cancel a partly filled order, the attached TP/SL is cancelled too, so add a fresh TP/SL to the part that filled.</p>
+        <div class="call warn" data-label="Important">
+          <p>Your stop loss must sit before your liquidation price. A long's stop must be above the liquidation price, a short's below it. Otherwise you're liquidated first and the stop never fires. pixeltrade's order panel warns you when this happens.</p>
+        </div>
+        <p class="src"><a href="https://hyperliquid.gitbook.io/hyperliquid-docs/trading/take-profit-and-stop-loss-orders-tp-sl" target="_blank" rel="noopener">Hyperliquid docs: TP/SL</a></p>
+      </section>
+
+      <section class="sec" id="funding" data-group="Trading" data-title="Funding">
+        <div class="eyebrow">Trading</div>
+        <h2>Funding</h2>
+        <p class="lead">Funding is a payment between longs and shorts, every hour, that keeps the perp price close to the real asset price.</p>
+        <ul>
+          <li>If the rate is <b>positive</b>, longs pay shorts. If <b>negative</b>, shorts pay longs.</li>
+          <li>It's peer to peer. Neither Hyperliquid nor pixeltrade takes a cut.</li>
+          <li>It's paid every hour, added to or taken from your balance.</li>
+          <li>It's capped at 4% per hour.</li>
+        </ul>
+        <h3 id="funding-formula">How the rate is set</h3>
+        <p>The rate has two parts: a fixed interest component of 0.01% every 8 hours (0.00125% per hour), and a premium that measures how far the perp is trading above or below the spot oracle price. The premium is sampled every 5 seconds and averaged over the hour.</p>
+        <div class="pre"><button class="copy" type="button">copy</button><pre><code>funding rate (8h) = average premium + clamp(interest − premium, −0.05%, +0.05%)
+hourly payment    = position size × oracle price × (8h rate ÷ 8)</code></pre></div>
+        <h3 id="funding-example">Example</h3>
+        <p>You hold a $10,000 BTC long and the hourly rate is +0.0013%. You pay 10,000 × 0.000013 = <strong>$0.13</strong> that hour. A short of the same size receives it. Over a day at that rate, about $3.12.</p>
+        <p>The markets table on the homepage shows each market's current hourly rate, and the BTC card counts down to the next payment.</p>
+        <p class="src"><a href="https://hyperliquid.gitbook.io/hyperliquid-docs/trading/funding" target="_blank" rel="noopener">Hyperliquid docs: Funding</a></p>
+      </section>
+
+      <section class="sec" id="prices" data-group="Trading" data-title="Mark & oracle prices">
+        <div class="eyebrow">Trading</div>
+        <h2>Mark &amp; oracle prices</h2>
+        <p>Three prices matter, and they can differ, especially in fast markets.</p>
+        <div class="tbl"><table>
+          <thead><tr><th>Price</th><th>What it is</th><th>Used for</th></tr></thead>
+          <tbody>
+            <tr><td><b>Last / mid price</b></td><td>The price trading on Hyperliquid's book right now</td><td>What you see in the order book and what market orders fill near</td></tr>
+            <tr><td><b>Oracle price</b></td><td>A weighted median of spot prices on major centralized exchanges, computed by Hyperliquid's validators</td><td>Funding payments</td></tr>
+            <tr><td><b>Mark price</b></td><td>Combines external exchange prices with Hyperliquid's own book</td><td>Liquidations and TP/SL triggers</td></tr>
+          </tbody>
+        </table></div>
+        <p>Because liquidations use the mark price, a brief spike on one order book alone doesn't liquidate you. It also means that in a sharp move, the book price and the mark price can be noticeably apart.</p>
+      </section>
+
+      <section class="sec" id="liquidations" data-group="Trading" data-title="Liquidations">
+        <div class="eyebrow">Trading</div>
+        <h2>Liquidations</h2>
+        <p class="lead">You're liquidated when your account equity falls below the maintenance margin. Your position is then closed for you.</p>
+        <h3 id="liq-process">What happens</h3>
+        <ol class="steps">
+          <li><b>Market close on the book</b>Hyperliquid sends market orders to close the position. If that restores the maintenance requirement, any collateral left over stays yours. There's no liquidation fee.</li>
+          <li><b>Partial for large positions</b>For positions over 100k USDC, only 20% is sent at first, followed by a 30-second cooldown.</li>
+          <li><b>Backstop</b>If equity falls below two thirds of the maintenance margin without the book closing it, the liquidator vault takes the position over. In this case the maintenance margin is <b>not</b> returned to you.</li>
+        </ol>
+        <ul>
+          <li><b>Cross</b>: a backstop liquidation transfers all your cross positions and cross margin. With no isolated positions, your account ends at zero.</li>
+          <li><b>Isolated</b>: only that position and its margin are affected. Your other positions are untouched.</li>
+        </ul>
+        <h3 id="liq-formula">The exact formula</h3>
+        <div class="pre"><button class="copy" type="button">copy</button><pre><code>liq_price = price − side × margin_available / position_size / (1 − l × side)
+
+side = 1 for long, −1 for short
+l    = 1 / maintenance leverage   (maintenance leverage = 2 × max leverage)
+margin_available (isolated) = isolated margin − maintenance margin required
+margin_available (cross)    = account value − maintenance margin required</code></pre></div>
+        <h3 id="liq-calc">Calculator</h3>
+        <div class="calc" id="calc">
+          <h4>isolated position · uses the formula above</h4>
+          <div class="calc-grid">
+            <label>Side<select id="c-side"><option value="1">Long</option><option value="-1">Short</option></select></label>
+            <label>Entry price<input id="c-entry" inputmode="decimal" value="100000"></label>
+            <label>Position value (USDC)<input id="c-size" inputmode="decimal" value="1000"></label>
+            <label>Your leverage<input id="c-lev" inputmode="numeric" value="10"></label>
+            <label>Market max leverage<input id="c-max" inputmode="numeric" value="40"></label>
+          </div>
+          <div class="calc-out">
+            <div><span>Margin</span><b id="o-margin">—</b></div>
+            <div><span>Maintenance</span><b id="o-mm">—</b></div>
+            <div><span>Liquidation price</span><b class="liq" id="o-liq">—</b></div>
+            <div><span>Move to liquidation</span><b id="o-move">—</b></div>
+          </div>
+          <p class="calc-note" id="o-note">Estimate at entry. Funding payments and fees move the real liquidation price over time.</p>
+        </div>
+        <div class="call" data-label="Avoid it">
+          <p>The simplest protection is a stop loss placed before the liquidation price, plus leverage low enough that normal price swings don't reach it.</p>
+        </div>
+        <p class="src"><a href="https://hyperliquid.gitbook.io/hyperliquid-docs/trading/liquidations" target="_blank" rel="noopener">Hyperliquid docs: Liquidations</a></p>
+      </section>
+
+      <!-- ============ FEES ============ -->
+      <section class="sec" id="fees" data-group="Fees" data-title="Fees">
+        <div class="eyebrow">Fees</div>
+        <h2>Fees</h2>
+        <p class="lead">A trade on pixeltrade has two fees: Hyperliquid's trading fee and pixeltrade's builder fee. Funding is separate and goes to other traders, not to anyone's fee account.</p>
+        <h3 id="exchange-fees">Hyperliquid trading fees</h3>
+        <p>Set by your rolling 14-day volume, assessed daily (UTC). Spot volume counts double toward your tier.</p>
+        <div class="tbl"><table>
+          <thead><tr><th>Tier</th><th>14-day volume</th><th class="r">Taker</th><th class="r">Maker</th></tr></thead>
+          <tbody>
+            <tr><td>0</td><td>under $5M</td><td class="r">0.045%</td><td class="r">0.015%</td></tr>
+            <tr><td>1</td><td>over $5M</td><td class="r">0.040%</td><td class="r">0.012%</td></tr>
+            <tr><td>2</td><td>over $25M</td><td class="r">0.035%</td><td class="r">0.008%</td></tr>
+            <tr><td>3</td><td>over $100M</td><td class="r">0.030%</td><td class="r">0.004%</td></tr>
+            <tr><td>4</td><td>over $500M</td><td class="r">0.028%</td><td class="r">0.000%</td></tr>
+            <tr><td>5</td><td>over $2B</td><td class="r">0.026%</td><td class="r">0.000%</td></tr>
+            <tr><td>6</td><td>over $7B</td><td class="r">0.024%</td><td class="r">0.000%</td></tr>
+          </tbody>
+        </table></div>
+        <p>Staking HYPE gives a further discount from 5% (over 10 HYPE) up to 40% (over 500,000 HYPE). Large maker volume can earn rebates instead of paying fees.</p>
+        <h3 id="builder-fee">pixeltrade builder fee</h3>
+        <p>pixeltrade earns through Hyperliquid's builder codes: a fee added to orders you place through pixeltrade, processed onchain as part of Hyperliquid's fee logic.</p>
+        <ul>
+          <li>Before your first trade you sign a one-time approval setting the <b>maximum</b> fee pixeltrade may charge. It must be signed by your main wallet.</li>
+          <li>You can revoke that approval at any time.</li>
+          <li>Hyperliquid caps builder fees at <b>0.1%</b> on perps. pixeltrade can never charge more than that, or more than you approved.</li>
+          <li>A wallet can have up to 10 builder approvals active at once.</li>
+        </ul>
+        <div class="call plan" data-label="Planned">
+          <p>pixeltrade's builder fee rate will be published here and shown in the order panel before you sign anything. It hasn't been set yet.</p>
+        </div>
+        <h3 id="fee-example">Example</h3>
+        <p>A $1,000 market order (taker) at tier 0 pays 1,000 × 0.045% = <strong>$0.45</strong> to Hyperliquid, plus pixeltrade's builder fee. Opening and closing are each a trade, so a round trip pays fees twice.</p>
+        <p class="src"><a href="https://hyperliquid.gitbook.io/hyperliquid-docs/trading/fees" target="_blank" rel="noopener">Hyperliquid docs: Fees</a> · <a href="https://hyperliquid.gitbook.io/hyperliquid-docs/trading/builder-codes" target="_blank" rel="noopener">Builder codes</a></p>
+      </section>
+
+      <!-- ============ ACCOUNT ============ -->
+      <section class="sec" id="security" data-group="Account" data-title="Wallets & security">
+        <div class="eyebrow">Account</div>
+        <h2>Wallets &amp; security</h2>
+        <h3 id="custody">Who holds what</h3>
+        <p>Your funds are in your Hyperliquid account, controlled by your wallet. pixeltrade has no access to withdraw them and no account system of its own.</p>
+        <h3 id="signatures">What you'll be asked to sign</h3>
+        <div class="tbl"><table>
+          <thead><tr><th>Signature</th><th>When</th><th>What it allows</th></tr></thead>
+          <tbody>
+            <tr><td><b>Connect</b></td><td>First visit</td><td>pixeltrade can read your public address. No permissions.</td></tr>
+            <tr><td><b>Enable trading</b></td><td>Once</td><td>Lets pixeltrade submit orders for your account.</td></tr>
+            <tr><td><b>Approve builder fee</b></td><td>Once</td><td>Sets the maximum fee pixeltrade may add to your orders.</td></tr>
+            <tr><td><b>Deposit / withdraw</b></td><td>Each time</td><td>Moves your USDC. Always confirm the amount and destination.</td></tr>
+          </tbody>
+        </table></div>
+        <div class="call warn" data-label="Never">
+          <ul>
+            <li>pixeltrade will never ask for your recovery phrase or private key. Anyone who does is trying to steal your funds.</li>
+            <li>Only use pixeltrade at its official address. Check the URL before connecting.</li>
+          </ul>
+        </div>
+        <h3 id="access-code">About the access code</h3>
+        <p>The code screen on the preview site keeps the unfinished app out of casual view. It isn't a security feature and doesn't protect any funds.</p>
+      </section>
+
+      <section class="sec" id="deposits" data-group="Account" data-title="Deposits & withdrawals">
+        <div class="eyebrow">Account</div>
+        <h2>Deposits &amp; withdrawals</h2>
+        <p>Deposits and withdrawals move USDC in and out of your Hyperliquid account. pixeltrade shows your balance as soon as it lands.</p>
+        <ul>
+          <li><b>Deposit</b>: USDC from Arbitrum is the most common route. Hyperliquid also accepts USDC from several other chains and some other assets, which then need swapping to USDC to use as perp margin.</li>
+          <li><b>Gas</b>: you need the source chain's gas token for the deposit. Trading on Hyperliquid itself is gasless.</li>
+          <li><b>Withdraw</b>: back to your wallet. Depending on the chain and method, small fees may apply.</li>
+          <li><b>Margin rule</b>: you can't withdraw margin that open positions need (see <a href="#withdrawing-margin">Withdrawing margin</a>).</li>
+        </ul>
+        <div class="call" data-label="Good to know">
+          <p>Because your funds live on Hyperliquid, not on pixeltrade, you can always reach them through any Hyperliquid interface, including app.hyperliquid.xyz, even if pixeltrade is offline.</p>
+        </div>
+      </section>
+
+      <!-- ============ RESOURCES ============ -->
+      <section class="sec" id="risks" data-group="Resources" data-title="Risks">
+        <div class="eyebrow">Resources</div>
+        <h2>Risks</h2>
+        <p class="lead">Leveraged trading can lose you your entire deposit, fast. Please read this.</p>
+        <ul>
+          <li><b>Leverage</b>: at 10x, a 10% move against you wipes out the margin, and liquidation comes a little before that.</li>
+          <li><b>Liquidation</b>: positions can be closed at a loss without your input. In a backstop liquidation you also lose the maintenance margin.</li>
+          <li><b>Volatility &amp; slippage</b>: prices can gap. Market orders and triggered stops can fill worse than expected, especially in thin markets.</li>
+          <li><b>Funding</b>: holding a position costs or earns funding every hour, which adds up on long holds.</li>
+          <li><b>Mark vs book</b>: in fast markets the mark price used for liquidations can differ from the book price you see.</li>
+          <li><b>Technology</b>: blockchains, bridges, wallets and interfaces can have bugs, outages or exploits.</li>
+          <li><b>Regulation</b>: perpetual futures aren't available to residents of some jurisdictions. You're responsible for following the rules where you live.</li>
+        </ul>
+        <div class="call warn" data-label="Not advice">
+          <p>Nothing in these docs or on pixeltrade is financial, legal or tax advice. Only trade with money you can afford to lose.</p>
+        </div>
+      </section>
+
+      <section class="sec" id="faq" data-group="Resources" data-title="FAQ">
+        <div class="eyebrow">Resources</div>
+        <h2>FAQ</h2>
+        <details><summary>Is pixeltrade an exchange?</summary><div><p>No. It's an interface. The exchange is Hyperliquid: orders match on its onchain order book and positions settle there.</p></div></details>
+        <details><summary>Who holds my money?</summary><div><p>You do. Your collateral is in your own Hyperliquid account, controlled by your wallet. pixeltrade can't withdraw it.</p></div></details>
+        <details><summary>What if pixeltrade goes offline?</summary><div><p>Your positions and funds stay on Hyperliquid. Open any other Hyperliquid interface, such as app.hyperliquid.xyz, with the same wallet to manage or close them.</p></div></details>
+        <details><summary>Why do I sign a builder fee approval?</summary><div><p>It's how Hyperliquid lets interfaces charge a fee. You set the maximum, Hyperliquid enforces it (and its own 0.1% cap on perps), and you can revoke it any time.</p></div></details>
+        <details><summary>Is the max leverage the same as on Hyperliquid?</summary><div><p>Yes. pixeltrade reads each market's max leverage directly from Hyperliquid. The BTC badge on the homepage is that live value.</p></div></details>
+        <details><summary>Are the prices on the homepage real?</summary><div><p>The terminal card, order book, markets table and ticker are live from Hyperliquid. The tutorial panel and the trade simulator use a demo balance and simulated price paths, and are labelled that way.</p></div></details>
+        <details><summary>Can I trade today?</summary><div><p>Not yet. pixeltrade is in private preview. Trading opens after testing on Hyperliquid's testnet.</p></div></details>
+      </section>
+
+      <section class="sec" id="glossary" data-group="Resources" data-title="Glossary">
+        <div class="eyebrow">Resources</div>
+        <h2>Glossary</h2>
+        <dl class="gloss">
+          <dt>Perp</dt><dd>Perpetual future. A contract that tracks an asset's price with no expiry.</dd>
+          <dt>Long / short</dt><dd>Betting on price going up / going down.</dd>
+          <dt>Leverage</dt><dd>Position value divided by the margin backing it.</dd>
+          <dt>Notional</dt><dd>The full value of a position: size × price.</dd>
+          <dt>Initial margin</dt><dd>Collateral needed to open a position.</dd>
+          <dt>Maintenance margin</dt><dd>Minimum collateral to keep a position open; below it you're liquidated.</dd>
+          <dt>Cross / isolated</dt><dd>Margin shared across positions / margin ring-fenced to one position.</dd>
+          <dt>Mark price</dt><dd>The reference price for liquidations and TP/SL, combining external prices with Hyperliquid's book.</dd>
+          <dt>Oracle price</dt><dd>Validators' weighted median of major exchange spot prices; used for funding.</dd>
+          <dt>Funding</dt><dd>Hourly payment between longs and shorts that anchors the perp to spot.</dd>
+          <dt>Liquidation</dt><dd>Forced closing of a position whose equity fell below maintenance margin.</dd>
+          <dt>TP / SL</dt><dd>Take profit / stop loss: orders that close a position at a target or a limit.</dd>
+          <dt>Maker / taker</dt><dd>Adds liquidity by resting in the book / removes it by filling immediately.</dd>
+          <dt>Reduce only</dt><dd>An order that can only shrink a position.</dd>
+          <dt>Builder code</dt><dd>Hyperliquid's mechanism that lets an interface add an approved fee to orders.</dd>
+          <dt>Slippage</dt><dd>The difference between the price you expected and the price you got.</dd>
+        </dl>
+      </section>
+
+      <section class="sec" id="changelog" data-group="Resources" data-title="Changelog">
+        <div class="eyebrow">Resources</div>
+        <h2>Changelog</h2>
+        <div class="log">
+          <h3 id="v01">v0.1 · private preview</h3>
+          <p><time>October 2026</time></p>
+          <ul>
+            <li>Homepage with live Hyperliquid market data: BTC price, order book, candles, funding countdown, markets table and ticker.</li>
+            <li>Interactive leverage tutorial with a practice order panel.</li>
+            <li>Trade simulator with take profit, stop loss and liquidation endings.</li>
+            <li>Access-code preview screen.</li>
+            <li>These docs.</li>
+          </ul>
+        </div>
+      </section>
+
+      <footer class="doc-foot">
+        <span>© pixeltrade · last updated October 2, 2026</span>
+        <span>Trading mechanics sourced from the <a href="https://hyperliquid.gitbook.io/hyperliquid-docs" target="_blank" rel="noopener">Hyperliquid documentation</a>.</span>
+      </footer>
+    </div>
+  </main>
+
+  <aside class="toc" aria-label="On this page">
+    <h4>On this page</h4>
+    <div id="toc"></div>
+    <a class="back" href="#article">↑ back to top</a>
+  </aside>
+</div>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  const secs = [...document.querySelectorAll("section.sec")];
+
+  /* anchors on headings */
+  document.querySelectorAll("section.sec h2, section.sec h3[id]").forEach(h=>{
+    const id = h.tagName==="H2" ? h.closest("section").id : h.id;
+    const a = document.createElement("a"); a.className="anchor"; a.href="#"+id; a.textContent="#"; a.setAttribute("aria-label","Link to this section");
+    h.appendChild(a);
+  });
+
+  /* sidebar nav built from sections */
+  const groups = {};
+  secs.forEach(s=>{ (groups[s.dataset.group] ||= []).push(s); });
+  const nav = $("nav");
+  nav.innerHTML = Object.entries(groups).map(([g,list])=>`<div class="nav-group"><h4>${g}</h4>${list.map(s=>`<a href="#${s.id}" data-id="${s.id}">${s.dataset.title}${s.querySelector('.call.plan')?'<span class="tag">planned</span>':''}</a>`).join("")}</div>`).join("");
+
+  /* mobile drawer */
+  const side=$("side"), scrim=$("scrim"), mb=$("menu-btn");
+  function drawer(open){ side.classList.toggle("open",open); scrim.classList.toggle("open",open); mb.setAttribute("aria-expanded",open); }
+  mb.addEventListener("click",()=>drawer(!side.classList.contains("open")));
+  scrim.addEventListener("click",()=>drawer(false));
+  nav.addEventListener("click",e=>{ if(e.target.closest("a")) drawer(false); });
+  addEventListener("keydown",e=>{ if(e.key==="Escape") drawer(false); });
+
+  /* scroll spy + right-hand toc */
+  const toc=$("toc"); let current=null;
+  function setActive(id){
+    if(id===current) return; current=id;
+    nav.querySelectorAll("a").forEach(a=>a.classList.toggle("on",a.dataset.id===id));
+    const s=$(id), hs=[...s.querySelectorAll("h3[id]")];
+    toc.innerHTML = `<a href="#${id}" data-h="${id}">${s.dataset.title}</a>` + hs.map(h=>`<a href="#${h.id}" data-h="${h.id}">${h.firstChild.textContent}</a>`).join("");
+  }
+  function spy(){
+    const y = innerHeight*0.3;
+    let best = secs[0];
+    for(const s of secs){ if(s.getBoundingClientRect().top - y <= 0) best = s; }
+    setActive(best.id);
+    let hBest = best.id;
+    best.querySelectorAll("h3[id]").forEach(h=>{ if(h.getBoundingClientRect().top - y <= 0) hBest = h.id; });
+    toc.querySelectorAll("a").forEach(a=>a.classList.toggle("on",a.dataset.h===hBest));
+  }
+  addEventListener("scroll",spy,{passive:true}); spy();
+
+  /* search: filters the sidebar by section text */
+  const q=$("q"), noRes=$("no-res");
+  q.addEventListener("input",()=>{
+    const v=q.value.trim().toLowerCase(); let any=false;
+    nav.querySelectorAll(".nav-group").forEach(g=>{
+      let shown=0;
+      g.querySelectorAll("a").forEach(a=>{ const hit=!v || $(a.dataset.id).textContent.toLowerCase().includes(v); a.hidden=!hit; if(hit) shown++; });
+      g.hidden = !shown; if(shown) any=true;
+    });
+    noRes.style.display = any ? "none" : "block";
+  });
+  q.addEventListener("keydown",e=>{
+    if(e.key==="Enter"){ const a=nav.querySelector("a:not([hidden])"); if(a){ location.hash=a.dataset.id; drawer(false); q.blur(); } }
+  });
+  addEventListener("keydown",e=>{ if(e.key==="/" && document.activeElement!==q && !/input|select|textarea/i.test(document.activeElement.tagName)){ e.preventDefault(); drawer(true); q.focus(); } });
+
+  /* copy buttons */
+  document.querySelectorAll(".copy").forEach(b=>b.addEventListener("click",async()=>{
+    const t=b.parentElement.querySelector("code").textContent;
+    try{ await navigator.clipboard.writeText(t); b.textContent="copied"; }catch(e){ b.textContent="press ⌘C"; }
+    setTimeout(()=>b.textContent="copy",1400);
+  }));
+
+  /* liquidation calculator (isolated), Hyperliquid's formula */
+  const fmt=(n,d=2)=>n.toLocaleString("en-US",{minimumFractionDigits:d,maximumFractionDigits:d});
+  function calc(){
+    const side=+$("c-side").value, entry=+$("c-entry").value, val=+$("c-size").value, lev=Math.round(+$("c-lev").value), max=Math.round(+$("c-max").value);
+    const note=$("o-note");
+    if(!(entry>0 && val>0 && lev>=1 && max>=1)){ ["o-margin","o-mm","o-liq","o-move"].forEach(id=>$(id).textContent="—"); note.textContent="Enter positive numbers."; return; }
+    if(lev>max){ ["o-margin","o-mm","o-liq","o-move"].forEach(id=>$(id).textContent="—"); note.textContent=`Leverage can't exceed the market max of ${max}x.`; return; }
+    const margin=val/lev, l=1/(2*max), mm=val*l, size=val/entry, avail=margin-mm;
+    const liq = entry - side*avail/size/(1 - l*side);
+    $("o-margin").textContent="$"+fmt(margin);
+    $("o-mm").textContent="$"+fmt(mm);
+    $("o-liq").textContent= liq>0 ? "$"+fmt(liq, entry>=1000?1:4) : "none";
+    $("o-move").textContent= liq>0 ? (side*(liq-entry)/entry*100).toFixed(2)+"%" : "—";
+    note.textContent="Estimate at entry. Funding payments and fees move the real liquidation price over time.";
+  }
+  ["c-side","c-entry","c-size","c-lev","c-max"].forEach(id=>$(id).addEventListener("input",calc));
+  calc();
+})();
+</script>
+</body>
+</html>
