@@ -15,5 +15,12 @@ Next.js (App Router, TypeScript), Supabase (later), Vercel.
 - Never put API keys, secrets or private keys in code. Use .env.local.
 - Commit to Git after each working step.
 
+## Project layout
+- app/: pages. `/` feed, `/u/[handle]` profile, `/post/[id]` trade post.
+- components/: UI pieces (Avatar, TradeCard, PostItem, Nav, RightColumn...).
+- lib/mock.ts: fake data for now. lib/chart.ts: SVG line helpers.
+- app/globals.css: the design's CSS, copied from design/perpy-designs.html.
+
 ## Status
-Step 1: project setup and static pages from the design.
+Step 1 done: Next.js setup and static pages from the design (mock data).
+Next: deploy to Vercel (Root Directory = perpy), then live prices.
