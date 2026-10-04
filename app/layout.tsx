@@ -1,17 +1,18 @@
 import type { Metadata, Viewport } from "next";
-import { Bricolage_Grotesque, Geist } from "next/font/google";
-import { LeftNav, MobileBar, MobileTabs } from "@/components/Nav";
-import RightColumn from "@/components/RightColumn";
+import { Bricolage_Grotesque, Geist, Geist_Mono } from "next/font/google";
+import { Dock, Header } from "@/components/Header";
+import Tape from "@/components/Tape";
 import { ToastProvider } from "@/components/Toast";
 import "./globals.css";
 
-// Fonts from the design. Next.js downloads them at build time and serves them itself.
-const geist = Geist({ subsets: ["latin"], weight: ["400", "500", "600", "700", "800"], variable: "--font-geist" });
+// Fonts. Next.js downloads them at build time and serves them itself.
+const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
+const mono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" });
 const bricolage = Bricolage_Grotesque({ subsets: ["latin"], weight: ["700", "800"], variable: "--font-bricolage" });
 
 export const metadata: Metadata = {
-  title: "perpy",
-  description: "Verified perp trades from real wallets, shared as posts.",
+  title: "perpy · show the receipts",
+  description: "Verified perp trades from real wallets, printed as receipts.",
 };
 
 export const viewport: Viewport = {
@@ -25,21 +26,16 @@ const themeScript = `try{var t=localStorage.getItem("theme");if(t)document.docum
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${geist.variable} ${bricolage.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`${geist.variable} ${mono.variable} ${bricolage.variable}`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body>
         <ToastProvider>
-          <div className="shell">
-            <LeftNav />
-            <main className="center">
-              <MobileBar />
-              {children}
-            </main>
-            <RightColumn />
-          </div>
-          <MobileTabs />
+          <Tape />
+          <Header />
+          <main className="page">{children}</main>
+          <Dock />
         </ToastProvider>
       </body>
     </html>

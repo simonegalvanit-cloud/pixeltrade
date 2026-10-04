@@ -248,3 +248,30 @@ export const TILES: [Coin, string, string, "w" | "l" | "o", string][] = [
 export function ringFor(handle: string): Ring | undefined {
   return STORIES.find((s) => s.handle === handle)?.ring;
 }
+
+// The Pit: everyone with an open position right now.
+// size picks the tile size (1 small .. 4 huge), heat is how strong the color is (0..1).
+export const PIT: { handle: string; coin: Coin; side: "long" | "short"; lev: number; pnl: string; roe: string; dir: "up" | "down"; size: 1 | 2 | 3 | 4; heat: number }[] = [
+  { handle: "liqhunter", coin: "SOL", side: "short", lev: 5, pnl: "+$2.1k", roe: "+74%", dir: "up", size: 4, heat: 0.85 },
+  { handle: "candlemonk", coin: "BTC", side: "long", lev: 4, pnl: "+$1.2k", roe: "+53%", dir: "up", size: 3, heat: 0.6 },
+  { handle: "mayatrades", coin: "BTC", side: "long", lev: 5, pnl: "+$612", roe: "+17%", dir: "up", size: 2, heat: 0.38 },
+  { handle: "kaia.trades", coin: "ETH", side: "long", lev: 8, pnl: "+$358", roe: "+12%", dir: "up", size: 2, heat: 0.3 },
+  { handle: "fundingfarmer", coin: "BTC", side: "short", lev: 2, pnl: "+$301", roe: "+2%", dir: "up", size: 1, heat: 0.16 },
+  { handle: "degenrin", coin: "HYPE", side: "long", lev: 10, pnl: "−$84", roe: "−17%", dir: "down", size: 1, heat: 0.4 },
+  { handle: "mossy", coin: "BTC", side: "long", lev: 3, pnl: "+$18", roe: "+1%", dir: "up", size: 1, heat: 0.1 },
+  { handle: "zoe.perps", coin: "DOGE", side: "short", lev: 5, pnl: "−$40", roe: "−7%", dir: "down", size: 1, heat: 0.22 },
+];
+
+// Ticker tape at the top: market prices mixed with what traders just did.
+export const TAPE: { label: string; value: string; dir?: "up" | "down" }[] = [
+  { label: "BTC", value: "96,388 +1.98%", dir: "up" },
+  { label: "@liqhunter", value: "opened SOL short 5x" },
+  { label: "ETH", value: "3,641.70 +2.41%", dir: "up" },
+  { label: "@kaia.trades", value: "+$357.80 on ETH long", dir: "up" },
+  { label: "SOL", value: "176.95 −3.12%", dir: "down" },
+  { label: "@degenrin", value: "stopped out on HYPE −$555", dir: "down" },
+  { label: "HYPE", value: "37.61 +5.06%", dir: "up" },
+  { label: "@fundingfarmer", value: "opened BTC short 2x" },
+  { label: "DOGE", value: "0.217 −0.84%", dir: "down" },
+  { label: "@candlemonk", value: "+$1.2k on BTC long", dir: "up" },
+];

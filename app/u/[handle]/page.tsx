@@ -2,9 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import Avatar from "@/components/Avatar";
 import { FollowButton, Tabs } from "@/components/Buttons";
-import { BackIcon, BellIcon, CalendarIcon, LinkIcon, MoreIcon, VerifiedCheck, WalletIcon } from "@/components/Icons";
+import { BellIcon, CalendarIcon, LinkIcon, VerifiedCheck, WalletIcon } from "@/components/Icons";
 import { ToastButton } from "@/components/Toast";
-import { ME, PEOPLE, STORIES, TILES } from "@/lib/mock";
+import { COIN_SYMBOL, ME, PEOPLE, PIT, TILES } from "@/lib/mock";
 import { rng, toPath, walk } from "@/lib/chart";
 
 // Build one page per trader when the site is built.
@@ -17,40 +17,44 @@ export async function generateMetadata({ params }: { params: Promise<{ handle: s
   return { title: p ? `${p.name} (@${p.handle}) · perpy` : "perpy" };
 }
 
-function Banner() {
-  const pts = walk(9, 40, 40, 140, 60);
-  const d = toPath(pts, 600, 200, 40, 20);
+// 18 weeks of trading days. Green = profitable day, red = losing day, blank = no trades.
+function TrackRecord({ seed }: { seed: number }) {
+  const r = rng(seed);
+  const days = Array.from({ length: 18 * 7 }, () => {
+    const x = r();
+    if (x < 0.28) return { k: "", h: 0 };
+    const win = r() < 0.62;
+    return { k: win ? "u" : "d", h: 0.25 + r() * 0.75 };
+  });
   return (
-    <div className="banner">
-      <svg viewBox="0 0 600 200" preserveAspectRatio="none" aria-hidden="true">
-        <path d={`${d}L600,200L0,200Z`} fill="rgba(255,255,255,.10)" />
-        <path d={d} fill="none" stroke="rgba(255,255,255,.55)" strokeWidth="2" vectorEffect="non-scaling-stroke" />
-      </svg>
-    </div>
+    <>
+      <div className="cal" aria-label="Daily results for the last 18 weeks">
+        {days.map((d, i) => <i key={i} className={d.k} style={{ "--h": d.h.toFixed(2) } as React.CSSProperties} />)}
+      </div>
+      <div className="legend">
+        loss <i style={{ background: "var(--down)" }} /><i style={{ background: "color-mix(in srgb,var(--down) 35%,var(--paper-2))" }} />
+        <i style={{ background: "var(--paper-2)", border: "1px solid var(--line)" }} />
+        <i style={{ background: "color-mix(in srgb,var(--up) 35%,var(--paper-2))" }} /><i style={{ background: "var(--up)" }} /> profit
+      </div>
+    </>
   );
 }
 
-function PnlChart() {
+function PnlChart({ seed }: { seed: number }) {
   // A made-up equity curve that trends up.
-  const r = rng(42);
+  const r = rng(seed);
   let v = 0;
   const pts = [0];
   for (let i = 0; i < 60; i++) { v += (r() - 0.36) * 1800; pts.push(v); }
-  const W = 600, H = 150;
-  const mn = Math.min(...pts), mx = Math.max(...pts), pad = (mx - mn) * 0.14;
+  const W = 600, H = 170;
+  const mn = Math.min(...pts), mx = Math.max(...pts), pad = (mx - mn) * 0.12;
   const y = (x: number) => H - ((x - (mn - pad)) / (mx + pad - (mn - pad))) * H;
   const d = pts.map((p, i) => `${i ? "L" : "M"}${((i / (pts.length - 1)) * W).toFixed(1)},${y(p).toFixed(1)}`).join("");
   return (
     <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true">
-      <defs>
-        <linearGradient id="pnl-g" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#0E9F5C" stopOpacity=".22" />
-          <stop offset="1" stopColor="#0E9F5C" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={`${d}L${W},${H}L0,${H}Z`} fill="url(#pnl-g)" />
-      <path d={d} fill="none" stroke="var(--up)" strokeWidth="2.2" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
-      <circle cx={W - 3} cy={y(pts[pts.length - 1])} r="4" fill="var(--up)" vectorEffect="non-scaling-stroke" />
+      <line x1="0" x2={W} y1={y(0)} y2={y(0)} stroke="var(--dash)" strokeDasharray="4 4" vectorEffect="non-scaling-stroke" />
+      <path d={`${d}L${W},${H}L0,${H}Z`} fill="var(--up-bg)" />
+      <path d={d} fill="none" stroke="var(--up)" strokeWidth="2.4" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -59,86 +63,89 @@ export default async function Profile({ params }: { params: Promise<{ handle: st
   const handle = decodeURIComponent((await params).handle);
   const p = PEOPLE[handle];
   if (!p) notFound();
-  const story = STORIES.find((s) => s.handle === handle);
+  const live = PIT.find((x) => x.handle === handle);
   const isMe = handle === ME;
+  const seed = [...handle].reduce((a, c) => a + c.charCodeAt(0), 0);
 
   return (
-    <section>
-      <div className="hdr">
-        <div className="hdr-t">
-          <Link className="ibtn" href="/" aria-label="Back"><BackIcon /></Link>
-          <div>{p.name}<small>{p.trades} trades</small></div>
-        </div>
-      </div>
-
-      <Banner />
-
-      <div className="phead">
-        <div className="top">
-          <Avatar handle={handle} size={132} ring={story?.ring} live={story?.pnl} />
-          <div className="btns">
-            <ToastButton className="btn icon" aria-label="More" message="Share profile, Mute, Report"><MoreIcon small /></ToastButton>
-            {isMe ? (
-              <ToastButton className="btn" message="Editing your profile comes in a later step">Edit profile</ToastButton>
-            ) : (
-              <>
-                <ToastButton className="btn icon" aria-label={`Alerts for ${p.name}`} message="Trade alerts come in a later step"><BellIcon small /></ToastButton>
-                <FollowButton />
-              </>
-            )}
+    <>
+      <section className="tcard" style={{ "--c1": p.colors[0], "--c2": p.colors[1] } as React.CSSProperties}>
+        <div className="grid">
+          <Avatar handle={handle} size={112} ring={live?.dir} live={live?.pnl} />
+          <div style={{ minWidth: 0 }}>
+            <div className="kick">Trader card · {p.trades} trades</div>
+            <h1>{p.name}{p.verified && <VerifiedCheck />}</h1>
+            <div className="hd">@{p.handle}</div>
+            <p className="bio">{p.bio}</p>
+            <div className="facts">
+              <span><WalletIcon small />{p.wallet}</span>
+              {p.link && <a href={`https://${p.link}`} rel="noopener noreferrer" target="_blank"><LinkIcon small />{p.link}</a>}
+              <span><CalendarIcon small />{p.joined.replace("Joined ", "Since ")}</span>
+            </div>
+          </div>
+          <div className="big">
+            <small>30-day PnL</small>
+            <b>{p.stats.pnl30d}</b>
+            <div className="acts">
+              {isMe ? (
+                <ToastButton className="btn solid" message="Editing your profile comes in a later step">Edit card</ToastButton>
+              ) : (
+                <>
+                  <ToastButton className="btn icon" aria-label={`Alerts for ${p.name}`} message="Trade alerts come in a later step"><BellIcon small /></ToastButton>
+                  <FollowButton />
+                </>
+              )}
+            </div>
           </div>
         </div>
-        <h1>{p.name} {p.verified && <VerifiedCheck />}</h1>
-        <div className="hd">@{p.handle}</div>
-        <div className="bio">{p.bio}</div>
-        <div className="facts">
-          <span><WalletIcon small />{p.wallet}</span>
-          {p.link && <span><LinkIcon small /><a className="cash" href={`https://${p.link}`} rel="noopener noreferrer" target="_blank">{p.link}</a></span>}
-          <span><CalendarIcon small />{p.joined}</span>
-        </div>
         <div className="ff">
-          <span><b>{p.following}</b> Following</span>
-          <span><b>{p.followers}</b> Followers</span>
-          <span><b>{p.alerts}</b> get alerts</span>
+          <span><b>{p.followers}</b> followers</span>
+          <span><b>{p.following}</b> following</span>
+          <span><b>{p.alerts}</b> tailing their trades</span>
+          {live && <span>In a trade now: <b>{live.coin} {live.side} {live.lev}x</b></span>}
+        </div>
+      </section>
+
+      <div className="kpis">
+        <div className="kpi"><span>Win rate</span><b>{p.stats.winRate}</b></div>
+        <div className="kpi"><span>Avg leverage</span><b>{p.stats.avgLev}</b></div>
+        <div className="kpi"><span>Best trade</span><b className="up">{p.stats.best}</b></div>
+        <div className="kpi"><span>Trades posted</span><b>{p.trades}</b></div>
+      </div>
+
+      <div className="duo">
+        <div className="box">
+          <h3>Track record <small>last 18 weeks</small></h3>
+          <TrackRecord seed={seed} />
+        </div>
+        <div className="box pnlchart">
+          <h3>PnL, read from the chain <Tabs variant="seg" options={["7D", "30D", "All"]} initial={1} label="Range" /></h3>
+          <PnlChart seed={seed} />
         </div>
       </div>
 
-      <div className="pstats">
-        <div><span>30d PnL</span><b className="up">{p.stats.pnl30d}</b></div>
-        <div><span>Win rate</span><b>{p.stats.winRate}</b></div>
-        <div><span>Avg leverage</span><b>{p.stats.avgLev}</b></div>
-        <div><span>Best trade</span><b className="up">{p.stats.best}</b></div>
+      <div className="sec-h" style={{ flexWrap: "wrap" }}>
+        <h2>Receipts</h2>
+        <Tabs options={["All", "Wins", "Losses", "Open (2)"]} label="Filter receipts" />
       </div>
-
-      <div className="pnl">
-        <div className="ph">
-          <span className="muted" style={{ fontSize: 13.5 }}>PnL, read from the chain</span>
-          <Tabs variant="seg" options={["7D", "30D", "All"]} initial={1} label="Range" />
-        </div>
-        <PnlChart />
-      </div>
-
-      <div className="hdr" style={{ position: "static", backdropFilter: "none" }}>
-        <Tabs options={["Trades", "Posts", "Open (2)", "Likes"]} label="Profile sections" />
-      </div>
-
-      <div className="grid3">
+      <div className="slips">
         {TILES.map(([coin, side, result, kind, sub], i) => {
           const pts = walk(i * 7 + 3, 24, 0, kind === "l" ? -5 : 5, 4);
+          const col = kind === "l" ? "var(--down)" : kind === "w" ? "var(--up)" : "var(--ink)";
           return (
-            <Link className={`tile ${kind}`} href="/post/1" key={i}>
-              <svg viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true">
-                <path d={toPath(pts, 100, 40)} fill="none" stroke="#fff" strokeWidth="2" vectorEffect="non-scaling-stroke" />
-              </svg>
-              <div className="tt">{coin}<span>{side}</span></div>
-              <div>
-                <div className="pv">{kind === "o" ? sub : result}</div>
-                <small>{kind === "o" ? "open now" : `${sub} on margin`}</small>
+            <Link className="mini-rc rc-wrap" href="/post/1" key={i}>
+              <div className="rc">
+                <div className="hd"><span>No. {String(2000 + i * 37).padStart(6, "0")}</span><span>{kind === "o" ? "open" : "closed"}</span></div>
+                <hr />
+                <div className="mk"><span className={`coin ${coin}`}>{COIN_SYMBOL[coin]}</span><span className="sym" style={{ fontSize: 17 }}>{coin}</span><span className="muted" style={{ marginLeft: "auto", fontSize: 12 }}>{side.toUpperCase()}</span></div>
+                <div className="pv" style={{ color: col }}>{kind === "o" ? sub : result}</div>
+                <div className="muted" style={{ fontSize: 11.5 }}>{kind === "o" ? "unrealized, live" : `${sub} on margin`}</div>
+                <svg className="sp" viewBox="0 0 100 36" preserveAspectRatio="none" aria-hidden="true"><path d={toPath(pts, 100, 36, 3, 3)} fill="none" stroke={col} strokeWidth="2" vectorEffect="non-scaling-stroke" /></svg>
               </div>
             </Link>
           );
         })}
       </div>
-    </section>
+    </>
   );
 }
