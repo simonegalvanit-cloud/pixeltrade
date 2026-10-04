@@ -7,7 +7,6 @@ Social trading app: Hyperliquid perp trades shared as verified posts.
 You need Node.js 20 or newer (https://nodejs.org).
 
 ```bash
-cd perpy
 npm install      # first time only: downloads the libraries
 npm run dev      # starts the app
 ```
