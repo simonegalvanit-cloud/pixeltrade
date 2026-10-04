@@ -15,6 +15,11 @@ export default function Side() {
   const { snap } = useMarket();
   return (
     <aside className="side">
+      <Link className="learn-cta" href="/learn">
+        <small>New to perps?</small>
+        <b>Watch how a trade works, step by step →</b>
+        <span>Long, short, leverage, stop loss, in 30 seconds.</span>
+      </Link>
       <div className="box">
         <h3>Your book <small>{MY_BOOK.length} open</small></h3>
         {MY_BOOK.map((key) => {
