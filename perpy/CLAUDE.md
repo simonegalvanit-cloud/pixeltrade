@@ -23,4 +23,5 @@ Next.js (App Router, TypeScript), Supabase (later), Vercel.
 
 ## Status
 Step 1 done: Next.js setup and static pages from the design (mock data).
-Next: deploy to Vercel (Root Directory = perpy), then live prices.
+Deployed on Vercel with Root Directory = perpy (perpy/vercel.json sets the framework).
+Next: live prices.
