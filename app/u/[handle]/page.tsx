@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import Avatar from "@/components/Avatar";
 import { FollowButton, Tabs } from "@/components/Buttons";
 import { BellIcon, CalendarIcon, LinkIcon, VerifiedCheck, WalletIcon } from "@/components/Icons";
 import { ToastButton } from "@/components/Toast";
-import { COIN_SYMBOL, ME, PEOPLE, PIT, TILES } from "@/lib/mock";
-import { rng, toPath, walk } from "@/lib/chart";
+import { CoinSpark, LiveAvatar, LiveNow, OpenTile } from "@/components/ProfileLive";
+import { COIN_SYMBOL, ME, PEOPLE, TILES } from "@/lib/mock";
+import { rng } from "@/lib/chart";
 
 // Build one page per trader when the site is built.
 export function generateStaticParams() {
@@ -63,7 +63,6 @@ export default async function Profile({ params }: { params: Promise<{ handle: st
   const handle = decodeURIComponent((await params).handle);
   const p = PEOPLE[handle];
   if (!p) notFound();
-  const live = PIT.find((x) => x.handle === handle);
   const isMe = handle === ME;
   const seed = [...handle].reduce((a, c) => a + c.charCodeAt(0), 0);
 
@@ -71,7 +70,7 @@ export default async function Profile({ params }: { params: Promise<{ handle: st
     <>
       <section className="tcard" style={{ "--c1": p.colors[0], "--c2": p.colors[1] } as React.CSSProperties}>
         <div className="grid">
-          <Avatar handle={handle} size={112} ring={live?.dir} live={live?.pnl} />
+          <LiveAvatar handle={handle} size={112} />
           <div style={{ minWidth: 0 }}>
             <div className="kick">Trader card · {p.trades} trades</div>
             <h1>{p.name}{p.verified && <VerifiedCheck />}</h1>
@@ -102,7 +101,7 @@ export default async function Profile({ params }: { params: Promise<{ handle: st
           <span><b>{p.followers}</b> followers</span>
           <span><b>{p.following}</b> following</span>
           <span><b>{p.alerts}</b> tailing their trades</span>
-          {live && <span>In a trade now: <b>{live.coin} {live.side} {live.lev}x</b></span>}
+          <LiveNow handle={handle} />
         </div>
       </section>
 
@@ -126,23 +125,23 @@ export default async function Profile({ params }: { params: Promise<{ handle: st
 
       <div className="sec-h" style={{ flexWrap: "wrap" }}>
         <h2>Receipts</h2>
-        <Tabs options={["All", "Wins", "Losses", "Open (2)"]} label="Filter receipts" />
+        <Tabs options={["All", "Wins", "Losses", "Open"]} label="Filter receipts" />
       </div>
       <div className="slips">
-        {TILES.map(([coin, side, result, kind, sub], i) => {
-          const pts = walk(i * 7 + 3, 24, 0, kind === "l" ? -5 : 5, 4);
-          const col = kind === "l" ? "var(--down)" : kind === "w" ? "var(--up)" : "var(--ink)";
+        <OpenTile handle={handle} />
+        {TILES.slice(0, 8).map(([coin, side, result, kind, sub], i) => {
+          const col = kind === "l" ? "var(--down)" : "var(--up)";
           return (
-            <Link className="mini-rc rc-wrap" href="/post/1" key={i}>
+            <div className="mini-rc rc-wrap" key={i}>
               <div className="rc">
-                <div className="hd"><span>No. {String(2000 + i * 37).padStart(6, "0")}</span><span>{kind === "o" ? "open" : "closed"}</span></div>
+                <div className="hd"><span>No. {String(2000 + i * 37).padStart(6, "0")}</span><span>closed</span></div>
                 <hr />
                 <div className="mk"><span className={`coin ${coin}`}>{COIN_SYMBOL[coin]}</span><span className="sym" style={{ fontSize: 17 }}>{coin}</span><span className="muted" style={{ marginLeft: "auto", fontSize: 12 }}>{side.toUpperCase()}</span></div>
-                <div className="pv" style={{ color: col }}>{kind === "o" ? sub : result}</div>
-                <div className="muted" style={{ fontSize: 11.5 }}>{kind === "o" ? "unrealized, live" : `${sub} on margin`}</div>
-                <svg className="sp" viewBox="0 0 100 36" preserveAspectRatio="none" aria-hidden="true"><path d={toPath(pts, 100, 36, 3, 3)} fill="none" stroke={col} strokeWidth="2" vectorEffect="non-scaling-stroke" /></svg>
+                <div className="pv" style={{ color: col }}>{result}</div>
+                <div className="muted" style={{ fontSize: 11.5 }}>{sub} on margin</div>
+                <CoinSpark coin={coin} offset={30 + i * 20} color={col} />
               </div>
-            </Link>
+            </div>
           );
         })}
       </div>

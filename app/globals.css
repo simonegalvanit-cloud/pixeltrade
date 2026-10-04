@@ -305,3 +305,16 @@ svg.i.sm{width:18px;height:18px}
 .empty{padding:60px 16px;text-align:center;color:var(--muted)}
 
 @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+
+/* ---------- live chart bits ---------- */
+.rc .chart .ldot{position:absolute;right:0;width:9px;height:9px;margin:-4.5px 0 0;border-radius:50%;background:currentColor;pointer-events:none}
+.rc .chart .ldot::after{content:"";position:absolute;inset:-6px;border-radius:50%;border:2px solid currentColor;opacity:0;animation:ping 1.8s ease-out infinite}
+@keyframes ping{0%{opacity:.6;transform:scale(.4)}100%{opacity:0;transform:scale(1.4)}}
+.rc .chart .emk{position:absolute;width:11px;height:11px;margin:-5.5px 0 0 -5.5px;border-radius:50%;background:var(--paper);border:2.5px solid var(--ink);pointer-events:none}
+.rc .lv{right:14px}
+.tape .status{position:absolute;left:0;top:0;bottom:0;z-index:2;display:flex;align-items:center;gap:7px;padding:0 14px;background:var(--ink);font:700 11px/32px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:#4BE08F;box-shadow:12px 0 14px -6px var(--ink)}
+.tape .status i{width:7px;height:7px;border-radius:50%;background:currentColor;animation:blink 1.4s ease-in-out infinite}
+.tape .status.wait{color:#F3CF6B}
+.tape .status.off{color:#FF7A7E}
+.tape .track{padding-left:150px}
+.skel{display:inline-block;min-width:3.5em;height:.9em;border-radius:4px;background:var(--line);vertical-align:-1px}

@@ -1,24 +1,35 @@
+"use client";
+
 import Link from "next/link";
-import { COIN_SYMBOL, MY_POSITIONS, PEOPLE, TRENDING, WHO_TO_FOLLOW } from "@/lib/mock";
+import { COIN_SYMBOL, MY_BOOK, PEOPLE, TRENDING, WHO_TO_FOLLOW } from "@/lib/mock";
 import { toPath } from "@/lib/chart";
+import { pct, usd } from "@/lib/format";
+import { dayChange, livePosition } from "@/lib/positions";
 import Avatar from "./Avatar";
 import { VerifiedCheck } from "./Icons";
 import { FollowButton } from "./Buttons";
+import { useMarket } from "./Market";
 
 // Desktop side column on the home page.
 export default function Side() {
+  const { snap } = useMarket();
   return (
     <aside className="side">
       <div className="box">
-        <h3>Your book <small>2 open</small></h3>
-        {MY_POSITIONS.map((p) => (
-          <div className="line" key={p.coin}>
-            <span className={`coin ${p.coin}`}>{COIN_SYMBOL[p.coin]}</span>
-            <div className="t"><b>{p.coin}</b><small className={p.side === "long" ? "up" : "down"}>{p.side.toUpperCase()} {p.lev}x</small></div>
-            <svg className="spark" viewBox="0 0 64 24" aria-hidden="true"><path d={toPath(p.spark, 64, 24, 2, 2)} fill="none" stroke={`var(--${p.dir})`} strokeWidth="2" /></svg>
-            <b className={`${p.dir} mono`} style={{ minWidth: 72, textAlign: "right", fontSize: 13.5 }}>{p.pnl}</b>
-          </div>
-        ))}
+        <h3>Your book <small>{MY_BOOK.length} open</small></h3>
+        {MY_BOOK.map((key) => {
+          const p = livePosition(key, snap);
+          if (!p) return <div className="line" key={key}><span className="skel" style={{ width: "100%" }} /></div>;
+          const dir = p.pnl >= 0 ? "up" : "down";
+          return (
+            <div className="line" key={key}>
+              <span className={`coin ${p.coin}`}>{COIN_SYMBOL[p.coin]}</span>
+              <div className="t"><b>{p.coin}</b><small className={p.side > 0 ? "up" : "down"}>{p.side > 0 ? "LONG" : "SHORT"} {p.lev}x</small></div>
+              <svg className="spark" viewBox="0 0 64 24" aria-hidden="true"><path d={toPath(p.pts.slice(-36), 64, 24, 2, 2)} fill="none" stroke={`var(--${dir})`} strokeWidth="2" /></svg>
+              <b className={`${dir} mono`} style={{ minWidth: 76, textAlign: "right", fontSize: 13.5 }}>{usd(p.pnl)}</b>
+            </div>
+          );
+        })}
       </div>
 
       <div className="box">
@@ -37,13 +48,16 @@ export default function Side() {
 
       <div className="box">
         <h3>Most posted <small>24h</small></h3>
-        {TRENDING.map((m) => (
-          <div className="line" key={m.coin}>
-            <span className={`coin ${m.coin}`}>{COIN_SYMBOL[m.coin]}</span>
-            <div className="t"><b>{m.coin}</b><small>{m.note}</small></div>
-            <b className={`${m.dir} mono`} style={{ fontSize: 13.5 }}>{m.change}</b>
-          </div>
-        ))}
+        {TRENDING.map((m) => {
+          const ch = dayChange(snap?.markets[m.coin]);
+          return (
+            <div className="line" key={m.coin}>
+              <span className={`coin ${m.coin}`}>{COIN_SYMBOL[m.coin]}</span>
+              <div className="t"><b>{m.coin}</b><small>{m.note}</small></div>
+              <b className={`${ch >= 0 ? "up" : "down"} mono`} style={{ fontSize: 13.5 }}>{snap ? pct(ch, 2) : "…"}</b>
+            </div>
+          );
+        })}
       </div>
     </aside>
   );

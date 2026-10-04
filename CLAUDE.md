@@ -22,11 +22,17 @@ Next.js (App Router, TypeScript), Supabase (later), Vercel.
 - app/: pages. `/` feed, `/u/[handle]` profile, `/post/[id]` trade post.
 - components/: Receipt (a trade), Slip (a feed post), Pit (heatmap),
   Tape (ticker), Header + Dock (nav), Side (home side column), Avatar...
-- lib/mock.ts: fake data for now. lib/chart.ts: SVG line helpers.
+- lib/mock.ts: fictional traders; their trades are defined by time/side/size.
+- lib/hyperliquid.ts: public Hyperliquid API (snapshot of prices + 5m candles).
+- lib/positions.ts: entry, mark, PnL, TP/SL from live prices. lib/format.ts.
+- components/Market.tsx: live store (websocket, reconnect, polling backup).
+  Use useMarket() in any client component to read live prices.
 - app/globals.css: all styles; color tokens at the top, light and dark.
 
 ## Status
 Step 1 done: Next.js setup and static pages (mock data).
 Redesign done: "show the receipts" look replaced the X-style layout.
 Deployed on Vercel from the repo root (Root Directory empty; vercel.json sets the framework).
-Next: live prices.
+Live prices done: every chart and number comes from Hyperliquid in real time.
+Pages are rebuilt every 60s with a fresh snapshot (ISR), then the browser streams.
+Next: real wallets (connect a wallet, read its actual positions and fills).
