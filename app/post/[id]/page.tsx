@@ -2,8 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import Avatar from "@/components/Avatar";
 import { FollowButton, LikeButton } from "@/components/Buttons";
-import { BackIcon, BellIcon, ReplyIcon, RepostIcon, ShareIcon, VerifiedCheck } from "@/components/Icons";
-import TradeCard from "@/components/TradeCard";
+import { BackIcon, BellIcon, ReplyIcon, ShareIcon, VerifiedCheck } from "@/components/Icons";
+import Receipt from "@/components/Receipt";
 import { ToastButton } from "@/components/Toast";
 import { ME, PEOPLE, POSTS, ringFor } from "@/lib/mock";
 
@@ -18,89 +18,95 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
   if (!post) notFound();
   const u = PEOPLE[post.handle];
   const d = post.detail;
+  // Highlight the last two words of the title like a marker pen.
+  const words = (d?.title ?? "").split(" ");
+  const head = words.slice(0, -2).join(" ");
+  const tail = words.slice(-2).join(" ");
 
   return (
-    <section>
-      <div className="hdr"><div className="hdr-t"><Link className="ibtn" href="/" aria-label="Back"><BackIcon /></Link>Post</div></div>
+    <>
+      <Link className="back" href="/"><BackIcon /> Back to the Pit</Link>
+      <div className="postpg">
+        <section className="thesis">
+          <div className="author">
+            <Link href={`/u/${u.handle}`}><Avatar handle={u.handle} size={48} ring={ringFor(u.handle)} /></Link>
+            <Link className="t" href={`/u/${u.handle}`}>
+              <b>{u.name} {u.verified && <VerifiedCheck />}</b>
+              <span className="muted mono" style={{ fontSize: 13 }}>@{u.handle} · {post.time} ago</span>
+            </Link>
+            <ToastButton className="btn icon" aria-label={`Alerts for ${u.name}`} message="Trade alerts come in a later step"><BellIcon small /></ToastButton>
+            <FollowButton />
+          </div>
 
-      <article className="detail">
-        <div className="h">
-          <Link href={`/u/${u.handle}`}><Avatar handle={u.handle} size={44} ring={ringFor(u.handle)} /></Link>
-          <Link className="who" href={`/u/${u.handle}`}>
-            <b>{u.name} {u.verified && <VerifiedCheck />}</b>
-            <span className="muted">@{u.handle}</span>
-          </Link>
-          <ToastButton className="ibtn" aria-label={`Alerts for ${u.name}`} message="Trade alerts come in a later step"><BellIcon /></ToastButton>
-          <FollowButton small />
+          {d ? (
+            <>
+              <h1>{head} <em>{tail}</em></h1>
+              {d.paragraphs.map((t) => <p key={t}>{t}</p>)}
+            </>
+          ) : (
+            <>
+              <p className="mono muted" style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: ".06em" }}>{post.context}</p>
+              {post.text ? <h1 style={{ fontSize: "clamp(26px,3.6vw,38px)" }}>{post.text}</h1> : <p className="muted">Posted automatically, no note.</p>}
+            </>
+          )}
+
+          <div className="thesis stats">
+            {d && <span><b>{d.views}</b> views</span>}
+            <span><b>{post.counts.likes}</b> likes</span>
+            <span><b>{post.counts.reposts}</b> reposts</span>
+            {d && <span><b>{d.alerts}</b> tailing</span>}
+            {d && <span>{d.postedAt}</span>}
+          </div>
+        </section>
+
+        <div className="rcol">
+          <Receipt id={`detail-${post.id}`} no={140 + Number(post.id) * 7} handle={post.handle} time={post.time} card={post.card} chartHeight={200}>
+            {d && (
+              <>
+                <hr />
+                <div className="row"><span>Take profit</span><b className="up">{d.plan.tp}</b></div>
+                <div className="row" style={{ fontSize: 11.5 }}><span /><em className="muted" style={{ fontStyle: "normal" }}>{d.plan.tpNote}</em></div>
+                <div className="row"><span>Stop loss</span><b className="down">{d.plan.sl}</b></div>
+                <div className="row" style={{ fontSize: 11.5 }}><span /><em className="muted" style={{ fontStyle: "normal" }}>{d.plan.slNote}</em></div>
+                <hr />
+                <div className="hd" style={{ marginBottom: 6 }}><span>Trade log</span></div>
+                <ul className="lines">
+                  {d.timeline.map((t) => (
+                    <li key={t.title}><time>{t.time}</time><span>{t.title}<br /><em>{t.note}</em></span><span>{t.mark}</span></li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </Receipt>
         </div>
 
-        {d ? (
-          <>
-            <h1>{d.title}</h1>
-            {d.paragraphs.map((t) => <p key={t}>{t}</p>)}
-          </>
-        ) : (
-          <>
-            <p className="muted" style={{ fontSize: 14, margin: "12px 0 4px" }}>{post.context}</p>
-            {post.text && <p>{post.text}</p>}
-          </>
-        )}
-
-        <TradeCard id={`detail-${post.id}`} card={post.card} chartHeight={260} />
-
-        {d && (
-          <div className="plan">
-            <div><span>Entry</span><b>{d.plan.entry}</b><small>{d.plan.entryNote}</small></div>
-            <div className="tp"><span>Take profit</span><b className="up">{d.plan.tp}</b><small>{d.plan.tpNote}</small></div>
-            <div className="sl"><span>Stop loss</span><b className="down">{d.plan.sl}</b><small>{d.plan.slNote}</small></div>
+        <section className="notes">
+          <h2>Margin notes {d && <span className="muted mono" style={{ fontSize: 14 }}>{d.replies.length}</span>}</h2>
+          <div className="reply">
+            <Avatar handle={ME} size={32} />
+            <input placeholder="Add a note to this receipt" aria-label="Reply" />
+            <ToastButton className="btn solid sm" message="Replies come in a later step">Reply</ToastButton>
           </div>
-        )}
-
-        {d && <div className="meta-line">{d.postedAt} · <b style={{ color: "var(--text)" }}>{d.views}</b> views</div>}
-        <div className="counts">
-          <span><b>{post.counts.reposts}</b> reposts</span>
-          <span><b>{post.counts.likes}</b> likes</span>
-          {d && <span><b>{d.alerts}</b> set alerts</span>}
-        </div>
-
-        {d && (
-          <div className="timeline" aria-label="Trade timeline">
-            {d.timeline.map((t) => (
-              <div className="tl" key={t.title}>
-                <i className={t.icon}>{t.mark}</i>
-                <div><b>{t.title}</b><p>{t.note}</p></div>
-                <time>{t.time}</time>
-              </div>
-            ))}
-          </div>
-        )}
-      </article>
-
-      <div className="reply-box" style={{ borderTop: "1px solid var(--line)" }}>
-        <Avatar handle={ME} size={40} />
-        <input placeholder="Post your reply" aria-label="Reply" />
-        <ToastButton className="btn brand sm" message="Replies come in a later step">Reply</ToastButton>
+          {d?.replies.map((r) => {
+            const ru = PEOPLE[r.handle];
+            return (
+              <article className="mnote" key={r.time}>
+                <Link href={`/u/${ru.handle}`}><Avatar handle={ru.handle} size={36} /></Link>
+                <div className="c">
+                  <div className="h">{ru.name}{ru.verified && <VerifiedCheck />}<span>@{ru.handle} · {r.time}</span></div>
+                  <p>{r.text}</p>
+                  <div className="mini">
+                    <LikeButton count={r.likes} />
+                    <ToastButton className="pill" aria-label="Reply" message="Replies come in a later step"><ReplyIcon /></ToastButton>
+                    <ToastButton className="pill" aria-label="Share" message="Link copied"><ShareIcon /></ToastButton>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+          {!d && <p className="muted">No notes yet.</p>}
+        </section>
       </div>
-
-      {d?.replies.map((r) => {
-        const ru = PEOPLE[r.handle];
-        return (
-          <article className="post" key={r.time}>
-            <Link href={`/u/${ru.handle}`}><Avatar handle={ru.handle} size={40} /></Link>
-            <div className="c">
-              <div className="h"><b>{ru.name}</b>{ru.verified && <VerifiedCheck />}<span className="hd">@{ru.handle} · {r.time}</span></div>
-              <div className="txt" style={{ marginTop: 2 }}>{r.text}</div>
-              <div className="acts">
-                <ToastButton className="act" aria-label="Reply" message="Replies come in a later step"><ReplyIcon /></ToastButton>
-                <ToastButton className="act" aria-label="Repost" message="Reposts come in a later step"><RepostIcon /></ToastButton>
-                <LikeButton count={r.likes} />
-                <span />
-                <ToastButton className="act" aria-label="Share" message="Link copied"><ShareIcon /></ToastButton>
-              </div>
-            </div>
-          </article>
-        );
-      })}
-    </section>
+    </>
   );
 }
