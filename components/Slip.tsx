@@ -1,17 +1,22 @@
+"use client";
+
 import Link from "next/link";
 import { PEOPLE, type Post } from "@/lib/mock";
+import { fillText, livePosition } from "@/lib/positions";
 import Avatar from "./Avatar";
 import { BellIcon, ReplyIcon, RepostIcon, ShareIcon, VerifiedCheck } from "./Icons";
 import { LikeButton } from "./Buttons";
+import { useMarket } from "./Market";
 import PostLink from "./PostLink";
 import Receipt from "./Receipt";
 import { ToastButton } from "./Toast";
 
 // One post in the feed: who, their note, the receipt, and reactions.
 export default function Slip({ post }: { post: Post }) {
+  const { snap } = useMarket();
   const u = PEOPLE[post.handle];
-  const open = post.card.state === "open";
-  const ring = open ? (post.card.stats.find((s) => s[0] === "PnL")?.[2] === "down" ? "down" : "up") : undefined;
+  const p = post.trade.kind === "open" ? livePosition(post.trade.pos, snap) : null;
+  const ring = p ? (p.pnl >= 0 ? "up" : "down") : undefined;
   return (
     <PostLink href={`/post/${post.id}`} className="slip click">
       <div className="by">
@@ -21,8 +26,8 @@ export default function Slip({ post }: { post: Post }) {
         <ToastButton className="more ibtn" aria-label="More" message="Mute, report, or copy link">⋯</ToastButton>
       </div>
       <div className="ctx">{post.context}</div>
-      {post.text && <p className="note">{post.text}</p>}
-      <Receipt id={`feed-${post.id}`} no={140 + Number(post.id) * 7} handle={post.handle} time={post.time} card={post.card} />
+      {post.text && <p className="note">{fillText(post.text, p)}</p>}
+      <Receipt id={`feed-${post.id}`} no={140 + Number(post.id) * 7} handle={post.handle} time={post.time} trade={post.trade} />
       <div className="reacts">
         <LikeButton count={post.counts.likes} />
         <ToastButton className="pill" aria-label="Replies" message="Replies come in a later step"><ReplyIcon />{post.counts.replies}</ToastButton>

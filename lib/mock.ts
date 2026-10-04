@@ -1,6 +1,7 @@
-// Fake data for step 1. Every person here is fictional and every number is made up.
-// It mirrors the mock data in design/perpy-designs.html. Later steps replace it
-// with real Hyperliquid trades and a database.
+// Example traders and their trades. The PEOPLE are fictional, but their trades
+// are anchored to REAL Hyperliquid prices: we store when a trade was opened and
+// how (side, leverage, size), and lib/positions.ts works out entry, mark and PnL
+// from live market data. A later step replaces this with real wallets.
 
 export type Coin = "BTC" | "ETH" | "SOL" | "HYPE" | "DOGE";
 export type Ring = "up" | "down" | "seen";
@@ -83,24 +84,46 @@ export const PEOPLE: Record<string, Person> = {
 };
 
 export const COIN_SYMBOL: Record<Coin, string> = { BTC: "₿", ETH: "Ξ", SOL: "S", HYPE: "H", DOGE: "Ð" };
+export const COINS: Coin[] = ["BTC", "ETH", "SOL", "HYPE", "DOGE"];
 
-export type Level = { v: number; kind: "t" | "e" | "s"; label: string };
+// ---------- open positions (live) ----------
+// ago: how many 5-minute candles ago the trade was opened (24 = 2 hours, max 230).
+// tp / sl: take profit and stop loss as a % move from entry (0.059 = +5.9%).
+export type PositionDef = {
+  handle: string; coin: Coin; side: 1 | -1; lev: number; size: number; ago: number;
+  tp?: number; sl?: number;
+  tile: 1 | 2 | 3 | 4; // tile size in the Pit, bigger position = bigger tile
+};
 
-export type OpenCard = {
-  state: "open";
-  coin: Coin; side: "long" | "short"; lev: number;
-  seed: number; from: number; to: number; vol: number;
-  levels?: Level[];
-  hiddenLevels?: boolean;
-  stats: [string, string, ("up" | "down")?][];
+export const POSITIONS: Record<string, PositionDef> = {
+  liam:    { handle: "liqhunter",     coin: "SOL",  side: -1, lev: 5,  size: 42000, ago: 190, tile: 4 },
+  dev:     { handle: "candlemonk",    coin: "BTC",  side: 1,  lev: 4,  size: 30000, ago: 150, tile: 3 },
+  kaia:    { handle: "kaia.trades",   coin: "ETH",  side: 1,  lev: 8,  size: 24000, ago: 24, tp: 0.059, sl: -0.03, tile: 2 },
+  maya:    { handle: "mayatrades",    coin: "BTC",  side: 1,  lev: 5,  size: 18400, ago: 120, tp: 0.08, sl: -0.025, tile: 2 },
+  ola:     { handle: "mossy",         coin: "BTC",  side: 1,  lev: 3,  size: 6000,  ago: 48, tile: 1 },
+  rin:     { handle: "degenrin",      coin: "HYPE", side: 1,  lev: 10, size: 5000,  ago: 10, tile: 1 },
+  jun:     { handle: "fundingfarmer", coin: "BTC",  side: -1, lev: 2,  size: 4000,  ago: 60, tp: -0.043, sl: 0.0245, tile: 1 },
+  zoe:     { handle: "zoe.perps",     coin: "DOGE", side: -1, lev: 5,  size: 3000,  ago: 100, tile: 1 },
+  mayaSol: { handle: "mayatrades",    coin: "SOL",  side: -1, lev: 3,  size: 3600,  ago: 6,  tile: 1 },
 };
-export type ClosedCard = {
-  state: "closed";
-  coin: Coin; side: "long" | "short"; lev: number;
-  pnl: string; roe: string; win: boolean;
-  stats: [string, string][];
+
+// Order of tiles in the Pit (one main position per trader).
+export const PIT_ORDER = ["liam", "dev", "rin", "ola", "maya", "kaia", "jun", "zoe"];
+
+// The signed-in user's open positions, shown in "Your book".
+export const MY_BOOK = ["maya", "mayaSol"];
+
+// ---------- closed trades ----------
+// closedAgo: 5-minute candles ago the trade was closed. The exit is the real price
+// then. move: the price move in the trader's favor (0.0608 = +6.08%, negative = loss).
+export type ClosedDef = {
+  coin: Coin; side: 1 | -1; lev: number; size: number; closedAgo: number; move: number; held: string; fees: string;
 };
-export type TradeCardData = OpenCard | ClosedCard;
+
+// ---------- posts ----------
+// Text can contain {tp} {sl} {entry} {dip} {e1} {e2} {tpNote} {slNote}, which are
+// filled in from the live position so the words always match the chart.
+export type TradeRef = { kind: "open"; pos: string; hiddenLevels?: boolean } | ({ kind: "closed" } & ClosedDef);
 
 export type Reply = { handle: string; time: string; text: string; likes: number };
 
@@ -110,168 +133,93 @@ export type Post = {
   time: string;
   context: string;
   text: string;
-  card: TradeCardData;
+  trade: TradeRef;
   counts: { replies: number; reposts: number; likes: number };
   // Extra content only shown on the post page.
   detail?: {
     title: string;
     paragraphs: string[];
-    plan: { entry: string; entryNote: string; tp: string; tpNote: string; sl: string; slNote: string };
     postedAt: string; views: string; alerts: number;
-    timeline: { icon: "g" | "k" | ""; mark: string; title: string; note: string; time: string }[];
+    timeline: { mark: string; title: string; note: string; time: string }[];
     replies: Reply[];
   };
 };
 
-const ETH_LEVELS: Level[] = [
-  { v: 3800, kind: "t", label: "TP 3,800" },
-  { v: 3588, kind: "e", label: "Entry 3,588" },
-  { v: 3480, kind: "s", label: "SL 3,480" },
-];
-
 export const POSTS: Post[] = [
   {
     id: "1", handle: "kaia.trades", time: "2h", context: "Opened a position",
-    text: "ETH reclaiming the weekly open. Funding is flat and OI is rebuilding slowly. Holding for 3,800, out on a 4h close below 3,480.",
-    card: {
-      state: "open", coin: "ETH", side: "long", lev: 8, seed: 11, from: 3540, to: 3641, vol: 70, levels: ETH_LEVELS,
-      stats: [["Entry", "3,588.20"], ["Mark", "3,641.70"], ["Size", "$24,000"], ["PnL", "+$357.80", "up"]],
-    },
+    text: "ETH reclaiming the weekly open. Funding is flat and OI is rebuilding slowly. Holding for {tp}, out on a 4h close below {sl}.",
+    trade: { kind: "open", pos: "kaia" },
     counts: { replies: 18, reposts: 24, likes: 142 },
     detail: {
       title: "ETH reclaiming the weekly open",
       paragraphs: [
-        "Funding reset to flat after last week's flush, and open interest is rebuilding slowly instead of chasing. Spot bids have absorbed every dip into 3,550.",
-        "I'm holding for a retest of 3,800. If we lose 3,480 on a 4h close the idea is wrong and I'm out. No averaging down.",
+        "Funding reset to flat after last week's flush, and open interest is rebuilding slowly instead of chasing. Spot bids have absorbed every dip into {dip}.",
+        "I'm holding for a retest of {tp}. If we lose {sl} on a 4h close the idea is wrong and I'm out. No averaging down.",
       ],
-      plan: {
-        entry: "3,588", entryNote: "filled 2h ago",
-        tp: "3,800", tpNote: "+5.9%, +47% on margin",
-        sl: "3,480", slNote: "−3.0%, −24% on margin",
-      },
-      postedAt: "2:14 PM, Oct 2, 2026", views: "18.4K", alerts: 31,
+      postedAt: "posted 2h ago", views: "18.4K", alerts: 31,
       timeline: [
-        { icon: "g", mark: "+", title: "Opened long 8x", note: "$12,000 at 3,571.40", time: "2h" },
-        { icon: "g", mark: "+", title: "Added $12,000", note: "at 3,605.00, average now 3,588.20", time: "1h" },
-        { icon: "k", mark: "✓", title: "Set take profit and stop loss", note: "3,800 and 3,480", time: "1h" },
-        { icon: "", mark: "", title: "Still open", note: "Funding paid so far: $2.10", time: "now" },
+        { mark: "+", title: "Opened long 8x", note: "$12,000 at {e1}", time: "2h" },
+        { mark: "+", title: "Added $12,000", note: "at {e2}, average now {entry}", time: "2h" },
+        { mark: "✓", title: "Set take profit and stop loss", note: "{tp} and {sl}", time: "2h" },
+        { mark: "", title: "Still open", note: "live below", time: "now" },
       ],
       replies: [
-        { handle: "liqhunter", time: "1h", text: "Clean level. I'd move the stop to entry once 3,700 prints.", likes: 6 },
-        { handle: "mossy", time: "58m", text: "What made you add at 3,605 instead of waiting for a retest?", likes: 7 },
+        { handle: "liqhunter", time: "1h", text: "Clean level. I'd move the stop to entry once it runs.", likes: 6 },
+        { handle: "mossy", time: "58m", text: "What made you add instead of waiting for a retest?", likes: 7 },
         { handle: "kaia.trades", time: "51m", text: "OI was building while funding stayed flat, so it isn't a crowded long yet. Retests have been shallow all week.", likes: 7 },
       ],
     },
   },
   {
     id: "2", handle: "liqhunter", time: "3h", context: "Closed a position",
-    text: "Took the SOL short off into the 177 bid. Second time this level has held, not pressing it.",
-    card: {
-      state: "closed", coin: "SOL", side: "short", lev: 5, pnl: "+$1,520", roe: "+30.4%", win: true,
-      stats: [["Entry", "188.40"], ["Exit", "176.95"], ["Held", "1d 4h"], ["Fees", "$9.80"]],
-    },
+    text: "Took the SOL short off into the bid. Second time this level has held, not pressing it.",
+    trade: { kind: "closed", coin: "SOL", side: -1, lev: 5, size: 25000, closedAgo: 36, move: 0.0608, held: "1d 4h", fees: "$9.80" },
     counts: { replies: 34, reposts: 41, likes: 211 },
   },
   {
     id: "3", handle: "mossy", time: "4h", context: "Opened a position · posted automatically", text: "",
-    card: {
-      state: "open", coin: "BTC", side: "long", lev: 3, hiddenLevels: true, seed: 5, from: 95400, to: 95840, vol: 500,
-      stats: [["Entry", "95,840"], ["Mark", "96,120"], ["Size", "$6,000"], ["PnL", "+$17.50", "up"]],
-    },
+    trade: { kind: "open", pos: "ola", hiddenLevels: true },
     counts: { replies: 2, reposts: 0, likes: 12 },
   },
   {
     id: "4", handle: "degenrin", time: "5h", context: "Closed a position",
     text: "Stopped out on HYPE. 10x into resistance was too much size. Lesson noted, posting it anyway.",
-    card: {
-      state: "closed", coin: "HYPE", side: "long", lev: 10, pnl: "−$555", roe: "−55.5%", win: false,
-      stats: [["Entry", "39.82"], ["Exit", "37.61"], ["Held", "6h"], ["Fees", "$4.10"]],
-    },
+    trade: { kind: "closed", coin: "HYPE", side: 1, lev: 10, size: 10000, closedAgo: 60, move: -0.0555, held: "6h", fees: "$4.10" },
     counts: { replies: 21, reposts: 3, likes: 96 },
   },
   {
-    id: "5", handle: "fundingfarmer", time: "7h", context: "Opened a position",
-    text: "Funding has been +0.004%/h for three days while price chops. Small short to collect funding and fade the crowded side.",
-    card: {
-      state: "open", coin: "BTC", side: "short", lev: 2, seed: 23, from: 97300, to: 96388, vol: 600,
-      levels: [
-        { v: 93000, kind: "t", label: "TP 93,000" },
-        { v: 97120, kind: "e", label: "Entry 97,120" },
-        { v: 99500, kind: "s", label: "SL 99,500" },
-      ],
-      stats: [["Entry", "97,120"], ["Mark", "96,388"], ["Size", "$40,000"], ["PnL", "+$301.40", "up"]],
-    },
+    id: "5", handle: "fundingfarmer", time: "5h", context: "Opened a position",
+    text: "Funding has been positive for three days while price chops. Small short to collect funding and fade the crowded side. Target {tp}, out above {sl}.",
+    trade: { kind: "open", pos: "jun" },
     counts: { replies: 9, reposts: 5, likes: 77 },
   },
 ];
 
-// Story rings: everyone with an open position, and how it is doing.
-export const STORIES: { handle: string; ring: Ring; pnl: string }[] = [
-  { handle: "mayatrades", ring: "up", pnl: "+$612" },
-  { handle: "liqhunter", ring: "up", pnl: "+$2.1k" },
-  { handle: "kaia.trades", ring: "up", pnl: "+$358" },
-  { handle: "fundingfarmer", ring: "up", pnl: "+$301" },
-  { handle: "degenrin", ring: "down", pnl: "−$84" },
-  { handle: "candlemonk", ring: "up", pnl: "+$1.2k" },
-  { handle: "mossy", ring: "up", pnl: "+$18" },
-  { handle: "zoe.perps", ring: "down", pnl: "−$40" },
-];
-
-// Right column: the signed-in user's open positions.
-export const MY_POSITIONS: { coin: Coin; side: "long" | "short"; lev: number; pnl: string; dir: "up" | "down"; spark: number[] }[] = [
-  { coin: "BTC", side: "long", lev: 5, pnl: "+$612.40", dir: "up", spark: [3, 4, 3, 5, 6, 6, 8, 7, 9] },
-  { coin: "SOL", side: "short", lev: 3, pnl: "−$48.10", dir: "down", spark: [6, 5, 6, 5, 4, 5, 4, 3, 3] },
-];
-
 export const WHO_TO_FOLLOW = ["liqhunter", "candlemonk", "fundingfarmer"];
 
-export const TRENDING: { coin: Coin; note: string; change: string; dir: "up" | "down" }[] = [
-  { coin: "BTC", note: "412 traders posting", change: "+1.98%", dir: "up" },
-  { coin: "ETH", note: "288 traders posting", change: "+2.41%", dir: "up" },
-  { coin: "SOL", note: "151 traders posting", change: "−3.12%", dir: "down" },
-  { coin: "HYPE", note: "97 traders posting", change: "+5.06%", dir: "up" },
+// "Most posted" markets in the side column. The % change is live.
+export const TRENDING: { coin: Coin; note: string }[] = [
+  { coin: "BTC", note: "412 traders posting" },
+  { coin: "ETH", note: "288 traders posting" },
+  { coin: "SOL", note: "151 traders posting" },
+  { coin: "HYPE", note: "97 traders posting" },
 ];
 
-// Profile grid tiles: [coin, side+lev, result, kind (w = win, l = loss, o = open), sub]
+// Past trades on a profile: [coin, side+lev, result, kind (w = win, l = loss, o = open), sub]
 export const TILES: [Coin, string, string, "w" | "l" | "o", string][] = [
   ["SOL", "Short 5x", "+$1,520", "w", "30%"],
   ["BTC", "Long 4x", "+$8,940", "w", "62%"],
   ["ETH", "Short 3x", "−$410", "l", "−11%"],
-  ["BTC", "Long 3x", "Open", "o", "+$2.1K"],
   ["SOL", "Short 4x", "+$2,280", "w", "38%"],
   ["DOGE", "Long 5x", "−$260", "l", "−26%"],
   ["HYPE", "Long 3x", "+$740", "w", "22%"],
   ["BTC", "Short 2x", "+$1,130", "w", "9%"],
-  ["SOL", "Long 5x", "Open", "o", "−$84"],
+  ["ETH", "Long 6x", "+$2,410", "w", "41%"],
+  ["SOL", "Long 5x", "−$384", "l", "−18%"],
 ];
 
-export function ringFor(handle: string): Ring | undefined {
-  return STORIES.find((s) => s.handle === handle)?.ring;
+// Which open position (if any) belongs to a trader.
+export function positionKeyFor(handle: string): string | undefined {
+  return PIT_ORDER.find((k) => POSITIONS[k].handle === handle);
 }
-
-// The Pit: everyone with an open position right now.
-// size picks the tile size (1 small .. 4 huge), heat is how strong the color is (0..1).
-export const PIT: { handle: string; coin: Coin; side: "long" | "short"; lev: number; pnl: string; roe: string; dir: "up" | "down"; size: 1 | 2 | 3 | 4; heat: number }[] = [
-  { handle: "liqhunter", coin: "SOL", side: "short", lev: 5, pnl: "+$2.1k", roe: "+74%", dir: "up", size: 4, heat: 0.85 },
-  { handle: "candlemonk", coin: "BTC", side: "long", lev: 4, pnl: "+$1.2k", roe: "+53%", dir: "up", size: 3, heat: 0.6 },
-  { handle: "mayatrades", coin: "BTC", side: "long", lev: 5, pnl: "+$612", roe: "+17%", dir: "up", size: 2, heat: 0.38 },
-  { handle: "kaia.trades", coin: "ETH", side: "long", lev: 8, pnl: "+$358", roe: "+12%", dir: "up", size: 2, heat: 0.3 },
-  { handle: "fundingfarmer", coin: "BTC", side: "short", lev: 2, pnl: "+$301", roe: "+2%", dir: "up", size: 1, heat: 0.16 },
-  { handle: "degenrin", coin: "HYPE", side: "long", lev: 10, pnl: "−$84", roe: "−17%", dir: "down", size: 1, heat: 0.4 },
-  { handle: "mossy", coin: "BTC", side: "long", lev: 3, pnl: "+$18", roe: "+1%", dir: "up", size: 1, heat: 0.1 },
-  { handle: "zoe.perps", coin: "DOGE", side: "short", lev: 5, pnl: "−$40", roe: "−7%", dir: "down", size: 1, heat: 0.22 },
-];
-
-// Ticker tape at the top: market prices mixed with what traders just did.
-export const TAPE: { label: string; value: string; dir?: "up" | "down" }[] = [
-  { label: "BTC", value: "96,388 +1.98%", dir: "up" },
-  { label: "@liqhunter", value: "opened SOL short 5x" },
-  { label: "ETH", value: "3,641.70 +2.41%", dir: "up" },
-  { label: "@kaia.trades", value: "+$357.80 on ETH long", dir: "up" },
-  { label: "SOL", value: "176.95 −3.12%", dir: "down" },
-  { label: "@degenrin", value: "stopped out on HYPE −$555", dir: "down" },
-  { label: "HYPE", value: "37.61 +5.06%", dir: "up" },
-  { label: "@fundingfarmer", value: "opened BTC short 2x" },
-  { label: "DOGE", value: "0.217 −0.84%", dir: "down" },
-  { label: "@candlemonk", value: "+$1.2k on BTC long", dir: "up" },
-];

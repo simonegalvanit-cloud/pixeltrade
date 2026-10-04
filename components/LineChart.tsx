@@ -1,43 +1,62 @@
-import type { Level } from "@/lib/mock";
+export type Level = { v: number; kind: "t" | "e" | "s"; label: string };
 
-const UP = "#0E9F5C";
-const DOWN = "#E5484D";
-const LEVEL_COLOR = { t: UP, e: "var(--muted)", s: DOWN };
+const LEVEL_COLOR = { t: "var(--up)", e: "var(--muted)", s: "var(--down)" };
 
-// Price line with a soft fill, optional dashed TP / entry / SL lines and labels.
-export default function LineChart({ id, pts, height = 132, levels = [] }: { id: string; pts: number[]; height?: number; levels?: Level[] }) {
+// Price line with a soft fill, dashed TP / entry / SL lines, a dot where the trade
+// was opened and a pulsing dot on the live price.
+// Levels too far away to fit are pinned to the top or bottom edge with an arrow.
+export default function LineChart({
+  id, pts, height = 132, levels = [], dir, entryIndex,
+}: {
+  id: string; pts: number[]; height?: number; levels?: Level[]; dir?: "up" | "down"; entryIndex?: number;
+}) {
+  if (pts.length < 2) return <div style={{ height }} />;
   const W = 600;
   const h = height;
-  const all = [...pts, ...levels.map((l) => l.v)];
+  const entry = levels.find((l) => l.kind === "e")?.v;
+  const all = entry !== undefined ? [...pts, entry] : pts;
   const mn = Math.min(...all);
   const mx = Math.max(...all);
-  const pad = (mx - mn) * 0.14 || 1;
-  const y = (v: number) => h - ((v - (mn - pad)) / (mx + pad - (mn - pad))) * h;
+  const pad = (mx - mn) * 0.15 || mx * 0.001 || 1;
+  const lo = mn - pad, hi = mx + pad;
+  const y = (v: number) => h - ((v - lo) / (hi - lo)) * h;
   const x = (i: number) => (i / (pts.length - 1)) * W;
-  const up = pts[pts.length - 1] >= pts[0];
+  const up = dir ? dir === "up" : pts[pts.length - 1] >= pts[0];
   const col = up ? "var(--up)" : "var(--down)";
   const d = pts.map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join("");
   const gid = `g-${id}`;
+  const lastY = (y(pts[pts.length - 1]) / h) * 100;
 
   return (
     <>
-      <svg viewBox={`0 0 ${W} ${h}`} preserveAspectRatio="none" aria-hidden="true" style={{ height: h }}>
+      <svg viewBox={`0 0 ${W} ${h}`} preserveAspectRatio="none" aria-hidden="true" style={{ height: h, color: col }}>
         <defs>
           <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor={up ? UP : DOWN} stopOpacity=".22" />
-            <stop offset="1" stopColor={up ? UP : DOWN} stopOpacity="0" />
+            <stop offset="0" stopColor="currentColor" stopOpacity=".22" />
+            <stop offset="1" stopColor="currentColor" stopOpacity="0" />
           </linearGradient>
         </defs>
-        {levels.map((l) => (
-          <line key={l.kind} x1="0" x2={W} y1={y(l.v)} y2={y(l.v)} stroke={LEVEL_COLOR[l.kind]} strokeWidth="1.5" strokeDasharray="5 5" vectorEffect="non-scaling-stroke" />
-        ))}
+        {levels.map((l) => {
+          const yy = y(l.v);
+          if (yy < 0 || yy > h) return null;
+          return <line key={l.kind} x1="0" x2={W} y1={yy} y2={yy} stroke={LEVEL_COLOR[l.kind]} strokeWidth="1.5" strokeDasharray="5 5" vectorEffect="non-scaling-stroke" />;
+        })}
         <path d={`${d}L${W},${h}L0,${h}Z`} fill={`url(#${gid})`} />
-        <path d={d} fill="none" stroke={col} strokeWidth="2.2" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
-        <circle cx={W - 3} cy={y(pts[pts.length - 1])} r="4" fill={col} vectorEffect="non-scaling-stroke" />
+        <path d={d} fill="none" stroke="currentColor" strokeWidth="2.2" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
       </svg>
-      {levels.map((l) => (
-        <span key={l.kind} className={`lv ${l.kind}`} style={{ top: `${((y(l.v) / h) * 100).toFixed(2)}%` }}>{l.label}</span>
-      ))}
+      {entryIndex !== undefined && entryIndex >= 0 && (
+        <span className="emk" style={{ left: `${(entryIndex / (pts.length - 1)) * 100}%`, top: `${(y(pts[entryIndex]) / h) * 100}%` }} title="Entry" />
+      )}
+      <span className="ldot" style={{ top: `${lastY}%`, color: col }} />
+      {levels.map((l) => {
+        const t = (y(l.v) / h) * 100;
+        const off = t < 0 ? "↑" : t > 100 ? "↓" : "";
+        return (
+          <span key={l.kind} className={`lv ${l.kind}`} style={{ top: `${Math.min(92, Math.max(8, t)).toFixed(2)}%` }}>
+            {l.label}{off && ` ${off}`}
+          </span>
+        );
+      })}
     </>
   );
 }
