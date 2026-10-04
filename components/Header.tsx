@@ -26,7 +26,7 @@ export function Header() {
           <Link className={path === "/" ? "on" : ""} href="/">The Pit</Link>
           <a href="#" onClick={soon}>Leaderboard</a>
           <a href="#" onClick={soon}>Alerts<span className="n">4</span></a>
-          <a href="#" onClick={soon}>Trade</a>
+          <Link className={path === "/learn" ? "on" : ""} href="/learn">How to trade</Link>
         </nav>
         <div className="right">
           <ThemeToggle className="ibtn" compact />
@@ -49,7 +49,7 @@ export function Dock() {
       <a href="#" onClick={soon} aria-label="Leaderboard"><SearchIcon /></a>
       <ToastButton className="plus" aria-label="Post a receipt" message="Posting comes in a later step"><PlusIcon /></ToastButton>
       <a href="#" onClick={soon} aria-label="Alerts"><BellIcon /><span className="dot" /></a>
-      <a href="#" onClick={soon} aria-label="Trade"><TradeBoxIcon /></a>
+      <Link className={path === "/learn" ? "on" : ""} href="/learn" aria-label="How to trade"><TradeBoxIcon /></Link>
     </nav>
   );
 }

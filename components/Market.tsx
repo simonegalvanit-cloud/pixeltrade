@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, useSyncExternalStore } from "react";
 import { COINS, type Coin } from "@/lib/mock";
-import { KEEP, STEP, WS, fetchContexts, fetchMids, fetchSnapshot, type Snapshot } from "@/lib/hyperliquid";
+import { STEP, WS, fetchContexts, fetchMids, fetchSnapshot, upsertCandle, type Snapshot } from "@/lib/hyperliquid";
 
 // Live market data for the whole app.
 // 1. The server hands over a snapshot so the page shows real numbers right away.
@@ -75,8 +75,8 @@ function createStore(initial: Snapshot | null) {
         const m = work.markets[c];
         if (!m) continue;
         const last = m.t.length - 1;
-        if (slot > m.t[last]) { m.t.push(slot); m.c.push(m.px); if (m.t.length > KEEP) { m.t.shift(); m.c.shift(); } }
-        else m.c[last] = m.px;
+        if (slot > m.t[last]) upsertCandle(m, slot, m.px, m.px, m.px, m.px);
+        else upsertCandle(m, slot, m.o[last], Math.max(m.h[last], m.px), Math.min(m.l[last], m.px), m.px);
       }
       // ...and swap in the official candles every 5 minutes.
       if (Date.now() - lastReload > STEP) { lastReload = Date.now(); reload().catch(() => {}); }
@@ -101,15 +101,10 @@ function createStore(initial: Snapshot | null) {
       stopPolling(); // the websocket works, no need for the backup
       applyMids(msg.data.mids as Record<string, string>);
     } else if (msg.channel === "candle") {
-      const k = msg.data as { t: number; s: string; i: string; c: string };
+      const k = msg.data as { t: number; s: string; i: string; o: string; h: string; l: string; c: string };
       const m = work.markets[k.s as Coin];
       if (!m || k.i !== "5m") return;
-      const last = m.t.length - 1;
-      if (m.t[last] === k.t) m.c[last] = +k.c;
-      else if (k.t > m.t[last]) {
-        m.t.push(k.t); m.c.push(+k.c);
-        if (m.t.length > KEEP) { m.t.shift(); m.c.shift(); }
-      }
+      upsertCandle(m, k.t, +k.o, +k.h, +k.l, +k.c);
       publish();
     }
   }

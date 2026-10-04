@@ -6,6 +6,7 @@ import { fmtLevel, fmtPx, money, pct, usd } from "@/lib/format";
 import { closedTrade, livePosition } from "@/lib/positions";
 import { LockIcon } from "./Icons";
 import LineChart, { type Level } from "./LineChart";
+import { ChartToggle, useChartMode } from "./ChartMode";
 import { useMarket } from "./Market";
 
 // A barcode drawn from a seed, so each receipt gets its own stripes.
@@ -35,6 +36,7 @@ export default function Receipt({
   id: string; no: number; handle: string; time: string; trade: TradeRef; chartHeight?: number; children?: React.ReactNode;
 }) {
   const { snap } = useMarket();
+  const mode = useChartMode();
   const def = trade.kind === "open" ? POSITIONS[trade.pos] : trade;
   const sideTxt = `${def.side > 0 ? "Long" : "Short"} ${def.lev}x`;
   const p = trade.kind === "open" ? livePosition(trade.pos, snap) : null;
@@ -66,9 +68,10 @@ export default function Receipt({
             <div className="row"><span>Entry</span><b>{p ? fmtPx(p.entry) : <Skel />}</b></div>
             <div className="row"><span>Mark</span><b>{p ? fmtPx(p.mark) : <Skel />}</b></div>
             <div className="row"><span>Size</span><b>{money(def.size)}</b></div>
+            <div className="chart-h"><span>Last 6h · 5m</span><ChartToggle /></div>
             <div className="chart">
               {p ? (
-                <LineChart id={id} height={chartHeight} pts={p.pts} levels={levels} dir={p.pnl >= 0 ? "up" : "down"} entryIndex={p.entryIndex} />
+                <LineChart id={id} height={chartHeight} pts={p.pts} candles={p.candles} mode={mode} levels={levels} dir={p.pnl >= 0 ? "up" : "down"} entryIndex={p.entryIndex} />
               ) : (
                 <div style={{ height: chartHeight }} />
               )}

@@ -16,8 +16,22 @@ export type MarketData = {
   prevDay: number; // price 24h ago, for the % change
   funding: number; // hourly funding rate
   t: number[]; // candle start times
+  o: number[]; // candle open prices
+  h: number[]; // candle highs (top of the wick)
+  l: number[]; // candle lows (bottom of the wick)
   c: number[]; // candle close prices
 };
+
+// Add or update a candle, keeping at most KEEP of them.
+export function upsertCandle(m: MarketData, t: number, o: number, h: number, l: number, c: number) {
+  const last = m.t.length - 1;
+  if (last >= 0 && m.t[last] === t) {
+    m.o[last] = o; m.h[last] = h; m.l[last] = l; m.c[last] = c;
+  } else if (last < 0 || t > m.t[last]) {
+    m.t.push(t); m.o.push(o); m.h.push(h); m.l.push(l); m.c.push(c);
+    if (m.t.length > KEEP) { m.t.shift(); m.o.shift(); m.h.shift(); m.l.shift(); m.c.shift(); }
+  }
+}
 
 export type Snapshot = {
   // Start of the candle that was "now" when the data was first loaded.
@@ -40,7 +54,7 @@ async function post<T>(body: unknown, opts: FetchOpts = {}): Promise<T> {
 }
 
 type AssetCtx = { midPx?: string | null; markPx: string; prevDayPx: string; funding: string };
-type Candle = { t: number; c: string };
+type Candle = { t: number; o: string; h: string; l: string; c: string };
 
 // Prices, 24h change and funding for our coins.
 export async function fetchContexts(opts?: FetchOpts) {
@@ -71,7 +85,7 @@ export async function fetchSnapshot(opts?: FetchOpts): Promise<Snapshot> {
     const cs = candles[i];
     const x = ctx[coin];
     if (!x || !cs?.length) return;
-    markets[coin] = { ...x, t: cs.map((k) => k.t), c: cs.map((k) => +k.c) };
+    markets[coin] = { ...x, t: cs.map((k) => k.t), o: cs.map((k) => +k.o), h: cs.map((k) => +k.h), l: cs.map((k) => +k.l), c: cs.map((k) => +k.c) };
   });
   return { anchorT: Math.floor(now / STEP) * STEP, markets };
 }

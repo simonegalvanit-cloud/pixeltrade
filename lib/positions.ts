@@ -14,19 +14,28 @@ function closeAt(m: MarketData, t: number) {
   return m.c[best];
 }
 
-// The last 6 hours of closes, with the newest point replaced by the live price.
+export type Candle = { o: number; h: number; l: number; c: number };
+
+// The last 6 hours of candles. The newest one is still forming, so its close
+// is the live price (and its wick stretches if the price runs past it).
 export function chartPoints(m: MarketData, count = WINDOW) {
   const closes = m.c.slice(-count);
   const times = m.t.slice(-count);
   closes[closes.length - 1] = m.px;
-  return { pts: closes, times };
+  const start = m.t.length - times.length;
+  const candles: Candle[] = times.map((_, i) => {
+    const j = start + i;
+    const c = closes[i];
+    return { o: m.o[j], h: Math.max(m.h[j], c), l: Math.min(m.l[j], c), c };
+  });
+  return { pts: closes, times, candles };
 }
 
 export type LivePosition = {
   key: string; handle: string; coin: Coin; side: 1 | -1; lev: number; size: number;
   entry: number; mark: number; pnl: number; roe: number;
   tpPx?: number; slPx?: number;
-  pts: number[]; entryIndex: number;
+  pts: number[]; candles: Candle[]; entryIndex: number;
 };
 
 export function livePosition(key: string, snap: Snapshot | null): LivePosition | null {
@@ -37,13 +46,13 @@ export function livePosition(key: string, snap: Snapshot | null): LivePosition |
   const entry = closeAt(m, entryT);
   const mark = m.px;
   const pnl = (d.side * (mark - entry)) / entry * d.size;
-  const { pts, times } = chartPoints(m);
+  const { pts, times, candles } = chartPoints(m);
   return {
     key, handle: d.handle, coin: d.coin, side: d.side, lev: d.lev, size: d.size,
     entry, mark, pnl, roe: (pnl / (d.size / d.lev)) * 100,
     tpPx: d.tp !== undefined ? niceLevel(entry * (1 + d.tp)) : undefined,
     slPx: d.sl !== undefined ? niceLevel(entry * (1 + d.sl)) : undefined,
-    pts, entryIndex: times.findIndex((t) => t >= entryT),
+    pts, candles, entryIndex: times.findIndex((t) => t >= entryT),
   };
 }
 
