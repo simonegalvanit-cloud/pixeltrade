@@ -3,7 +3,7 @@ import type { ChartMode } from "./ChartMode";
 
 export type Level = { v: number; kind: "t" | "e" | "s"; label: string };
 
-const LEVEL_COLOR = { t: "var(--up)", e: "var(--muted)", s: "var(--down)" };
+const LEVEL_COLOR = { t: "var(--up)", e: "rgba(255,255,255,.55)", s: "var(--down)" };
 
 // Price chart, drawn as a line with a soft fill or as candles with wicks.
 // Each candle is 5 minutes: the body runs from open to close (green if price
@@ -21,9 +21,13 @@ export default function LineChart({
   if (pts.length < 2) return <div style={{ height }} />;
   const W = 600;
   const h = height;
-  const entry = levels.find((l) => l.kind === "e")?.v;
+  // Zoom on recent price action. The entry is included only if it's close by;
+  // otherwise its label is pinned to the edge with an arrow, like TP and SL.
   const range = showCandles ? candles!.flatMap((k) => [k.h, k.l]) : pts;
-  const all = entry !== undefined ? [...range, entry] : range;
+  const entry = levels.find((l) => l.kind === "e")?.v;
+  const rLo = Math.min(...range), rHi = Math.max(...range), span = rHi - rLo || rHi * 0.002;
+  const near = entry !== undefined && entry > rLo - span && entry < rHi + span;
+  const all = near ? [...range, entry!] : range;
   const mn = Math.min(...all);
   const mx = Math.max(...all);
   const pad = (mx - mn) * 0.15 || mx * 0.001 || 1;
@@ -67,7 +71,7 @@ export default function LineChart({
         ) : (
           <>
             <path d={`${d}L${W},${h}L0,${h}Z`} fill={`url(#${gid})`} />
-            <path d={d} fill="none" stroke="currentColor" strokeWidth="2.2" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
+            <path className="ln" d={d} fill="none" stroke="currentColor" strokeWidth="2.2" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
           </>
         )}
       </svg>

@@ -11,10 +11,6 @@ npm install      # first time only: downloads the libraries
 npm run dev      # starts the app
 ```
 
-Then open http://localhost:3000. Pages to try:
-
-- http://localhost:3000/ (feed)
-- http://localhost:3000/u/liqhunter (profile)
-- http://localhost:3000/post/1 (trade post)
-
-Everything shown is fake example data for now.
+Then open http://localhost:3000. Pages to try: `/` (the Pit), `/scores`,
+`/u/<any wallet address>`, `/learn`.
+All trades and prices are real, read from Hyperliquid's public API (no key needed).

@@ -30,9 +30,10 @@ export function usd(v: number, dp = 2) {
   return `${v >= 0 ? "+" : MINUS}$${s}`;
 }
 
+// Short money: +$950, +$12.4k, +$3.2M, +$1.1B.
 export function usdShort(v: number) {
   const a = Math.abs(v);
-  const s = a >= 1000 ? `${(a / 1000).toFixed(1)}k` : a.toFixed(0);
+  const s = a >= 1e9 ? `${(a / 1e9).toFixed(1)}B` : a >= 1e6 ? `${(a / 1e6).toFixed(1)}M` : a >= 1000 ? `${(a / 1000).toFixed(1)}k` : a.toFixed(0);
   return `${v >= 0 ? "+" : MINUS}$${s}`;
 }
 
@@ -42,4 +43,21 @@ export function pct(v: number, dp = 1) {
 
 export function money(v: number) {
   return "$" + Math.round(v).toLocaleString("en-US");
+}
+
+// Money for scores: +$357.80, +$12,174, +$65.58M, +$1.20B.
+export function usdBig(v: number) {
+  const a = Math.abs(v);
+  const sign = v >= 0 ? "+" : MINUS;
+  if (a >= 1e9) return `${sign}$${(a / 1e9).toFixed(2)}B`;
+  if (a >= 1e6) return `${sign}$${(a / 1e6).toFixed(2)}M`;
+  return usd(v, a >= 10000 ? 0 : 2);
+}
+
+// Plain dollars, compact when large: $950, $227.5M.
+export function moneyShort(v: number) {
+  const a = Math.abs(v);
+  if (a >= 1e9) return `$${(a / 1e9).toFixed(2)}B`;
+  if (a >= 1e6) return `$${(a / 1e6).toFixed(1)}M`;
+  return money(v);
 }

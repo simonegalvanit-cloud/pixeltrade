@@ -1,69 +1,103 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { COIN_SYMBOL, MY_BOOK, PEOPLE, TRENDING, WHO_TO_FOLLOW } from "@/lib/mock";
-import { toPath } from "@/lib/chart";
-import { pct, usd } from "@/lib/format";
-import { dayChange, livePosition } from "@/lib/positions";
-import Avatar from "./Avatar";
-import { VerifiedCheck } from "./Icons";
-import { FollowButton } from "./Buttons";
+import { fetchOrders, fetchState } from "@/lib/hyperliquid";
+import { pct, usd, usdBig } from "@/lib/format";
+import { dayChange, livePos } from "@/lib/positions";
+import { parsePositions, type Player, type Position } from "@/lib/trading";
+import Coin from "./Coin";
 import { useMarket } from "./Market";
+import { ConnectButton, useWallet } from "./Wallet";
+
+// Your connected wallet's open positions, refreshed every 30 seconds.
+export function useBook(address: string | null) {
+  const [book, setBook] = useState<{ positions: Position[]; accountValue: number } | null>(null);
+  useEffect(() => {
+    if (!address) { setBook(null); return; }
+    let on = true;
+    const load = async () => {
+      try {
+        const [s, o] = await Promise.all([fetchState(address, { cache: "no-store" }), fetchOrders(address, { cache: "no-store" }).catch(() => [])]);
+        if (on) setBook({ positions: parsePositions(address, s, o), accountValue: +s.marginSummary.accountValue });
+      } catch {}
+    };
+    load();
+    const t = setInterval(load, 30000);
+    return () => { on = false; clearInterval(t); };
+  }, [address]);
+  return book;
+}
+
+const WATCH = ["BTC", "ETH", "SOL", "HYPE", "XRP", "DOGE", "SUI", "BNB", "AVAX", "LINK", "PUMP", "ENA", "kPEPE", "FARTCOIN", "WIF", "TRUMP"];
 
 // Desktop side column on the home page.
-export default function Side() {
+export default function Side({ ranked }: { ranked: Player[] }) {
   const { snap } = useMarket();
+  const { address } = useWallet();
+  const book = useBook(address);
+  const movers = WATCH.filter((c) => snap?.mids[c])
+    .map((c) => ({ c, ch: dayChange(c, snap) }))
+    .sort((a, b) => Math.abs(b.ch) - Math.abs(a.ch))
+    .slice(0, 5);
+
   return (
     <aside className="side">
+      <div className="box">
+        <h3>Your book <small>{address ? `${address.slice(0, 6)}…${address.slice(-4)}` : "P1"}</small></h3>
+        {!address && (
+          <>
+            <p className="muted" style={{ margin: "0 0 10px", fontSize: 13.5 }}>Connect your wallet to see your live Hyperliquid positions here.</p>
+            <ConnectButton />
+          </>
+        )}
+        {address && !book && <span className="skel" style={{ width: "100%" }} />}
+        {address && book && book.positions.length === 0 && <p className="muted mono" style={{ margin: 0, fontSize: 12.5 }}>No open positions. Account: ${Math.round(book.accountValue).toLocaleString("en-US")}</p>}
+        {book?.positions.map((p) => {
+          const l = livePos(p, snap);
+          const dir = l.pnl >= 0 ? "up" : "down";
+          return (
+            <Link className="line" key={p.coin} href={`/m/${address}/${encodeURIComponent(p.coin)}`}>
+              <Coin coin={p.coin} />
+              <div className="t"><b>{p.coin}</b><small className={p.szi > 0 ? "up" : "down"}>{p.szi > 0 ? "LONG" : "SHORT"} ×{p.lev}</small></div>
+              <b className={`${dir} mono`} style={{ textAlign: "right", fontSize: 13 }}>{usd(l.pnl)}</b>
+            </Link>
+          );
+        })}
+      </div>
+
+      <div className="box">
+        <h3>Hi-scores <small>30D PNL</small></h3>
+        <table className="hs">
+          <tbody>
+            {ranked.slice(0, 5).map((p, i) => (
+              <tr key={p.address}>
+                <td className="rk">{i + 1}.</td>
+                <td className="nm"><Link href={`/u/${p.address}`}>{p.name}</Link></td>
+                <td className="v">{usdBig(p.perf.month.pnl)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <Link className="btn sm" href="/scores" style={{ width: "100%", marginTop: 10 }}>All hi-scores</Link>
+      </div>
+
+      <div className="box">
+        <h3>Big movers <small>24H</small></h3>
+        {movers.map(({ c, ch }) => (
+          <div className="line" key={c}>
+            <Coin coin={c} />
+            <div className="t"><b>{c}</b><small>{snap?.mids[c] ? snap.mids[c].toLocaleString("en-US", { maximumSignificantDigits: 6 }) : ""}</small></div>
+            <b className={`${ch >= 0 ? "up" : "down"} mono`} style={{ fontSize: 13 }}>{pct(ch, 2)}</b>
+          </div>
+        ))}
+      </div>
+
       <Link className="learn-cta" href="/learn">
-        <small>New to perps?</small>
-        <b>Watch how a trade works, step by step →</b>
-        <span>Long, short, leverage, stop loss, in 30 seconds.</span>
+        <small>INSERT COIN</small>
+        <b>New to perps? Watch how a trade works →</b>
+        <span>Long, short, leverage, stop loss. 30 seconds.</span>
       </Link>
-      <div className="box">
-        <h3>Your book <small>{MY_BOOK.length} open</small></h3>
-        {MY_BOOK.map((key) => {
-          const p = livePosition(key, snap);
-          if (!p) return <div className="line" key={key}><span className="skel" style={{ width: "100%" }} /></div>;
-          const dir = p.pnl >= 0 ? "up" : "down";
-          return (
-            <div className="line" key={key}>
-              <span className={`coin ${p.coin}`}>{COIN_SYMBOL[p.coin]}</span>
-              <div className="t"><b>{p.coin}</b><small className={p.side > 0 ? "up" : "down"}>{p.side > 0 ? "LONG" : "SHORT"} {p.lev}x</small></div>
-              <svg className="spark" viewBox="0 0 64 24" aria-hidden="true"><path d={toPath(p.pts.slice(-36), 64, 24, 2, 2)} fill="none" stroke={`var(--${dir})`} strokeWidth="2" /></svg>
-              <b className={`${dir} mono`} style={{ minWidth: 76, textAlign: "right", fontSize: 13.5 }}>{usd(p.pnl)}</b>
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="box">
-        <h3>Worth tailing <small>30d</small></h3>
-        {WHO_TO_FOLLOW.map((h) => {
-          const p = PEOPLE[h];
-          return (
-            <div className="line" key={h}>
-              <Avatar handle={h} size={36} />
-              <Link className="t" href={`/u/${h}`}><b>{p.name.split(" ")[0]}{p.verified && <VerifiedCheck />}</b><small className="up">{p.stats.pnl30d} · {p.stats.winRate} wins</small></Link>
-              <FollowButton small />
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="box">
-        <h3>Most posted <small>24h</small></h3>
-        {TRENDING.map((m) => {
-          const ch = dayChange(snap?.markets[m.coin]);
-          return (
-            <div className="line" key={m.coin}>
-              <span className={`coin ${m.coin}`}>{COIN_SYMBOL[m.coin]}</span>
-              <div className="t"><b>{m.coin}</b><small>{m.note}</small></div>
-              <b className={`${ch >= 0 ? "up" : "down"} mono`} style={{ fontSize: 13.5 }}>{snap ? pct(ch, 2) : "…"}</b>
-            </div>
-          );
-        })}
-      </div>
     </aside>
   );
 }

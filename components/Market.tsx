@@ -1,17 +1,17 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, useSyncExternalStore } from "react";
-import { COINS, type Coin } from "@/lib/mock";
-import { STEP, WS, fetchContexts, fetchMids, fetchSnapshot, upsertCandle, type Snapshot } from "@/lib/hyperliquid";
+import { CORE, STEP, WS, fetchCandles, fetchContexts, fetchMids, fetchSnapshot, upsertCandle, type MarketData, type Snapshot } from "@/lib/hyperliquid";
 
 // Live market data for the whole app.
 // 1. The server hands over a snapshot so the page shows real numbers right away.
-// 2. In the browser we open Hyperliquid's websocket: "allMids" streams every price
-//    change, "candle" streams the current 5-minute candle.
+// 2. In the browser we open Hyperliquid's websocket: "allMids" streams every
+//    price, "candle" streams the current 5-minute candle of coins on screen.
 // 3. If the connection drops we reconnect, waiting a little longer each time
-//    (1s, 2s, 4s... up to 15s), and reload the candles we missed.
+//    (1s, 2s, 4s... up to 15s), and reload what we missed.
 // 4. Some networks block websockets. If it can't connect within a few seconds we
 //    ask for prices over normal requests every 2 seconds until the websocket works.
+// 5. Cards call useCoin("PEPE") and the candles for that coin get loaded.
 
 export type Status = "connecting" | "live" | "reconnecting" | "offline";
 type State = { snap: Snapshot | null; status: Status };
@@ -22,12 +22,14 @@ function createStore(initial: Snapshot | null) {
   const listeners = new Set<() => void>();
   let work: Snapshot | null = initial ? structuredClone(initial) : null;
   let pending: ReturnType<typeof setTimeout> | undefined;
+  const wanted = new Set<string>(initial ? Object.keys(initial.markets) : CORE);
+  const loading = new Set<string>();
 
   // Publish at most 4 times a second, so a burst of ticks doesn't re-draw for each one.
   function publish(now = false) {
     const go = () => {
       pending = undefined;
-      state = { snap: work ? structuredClone(work) : null, status: state.status };
+      state = { snap: work ? { ...work, mids: { ...work.mids }, markets: { ...work.markets } } : null, status: state.status };
       listeners.forEach((l) => l());
     };
     if (now) { clearTimeout(pending); go(); }
@@ -38,11 +40,13 @@ function createStore(initial: Snapshot | null) {
     state = { ...state, status: s };
     listeners.forEach((l) => l());
   }
+  function copy(m: MarketData): MarketData {
+    return { px: m.px, t: [...m.t], o: [...m.o], h: [...m.h], l: [...m.l], c: [...m.c] };
+  }
 
-  // Load fresh candles but keep the original anchor, so trade entries stay put.
   async function reload() {
-    const fresh = await fetchSnapshot({ cache: "no-store" });
-    work = work ? { anchorT: work.anchorT, markets: { ...work.markets, ...fresh.markets } } : fresh;
+    const fresh = await fetchSnapshot([...wanted], { cache: "no-store" });
+    work = { mids: fresh.mids, ctx: fresh.ctx, markets: { ...(work?.markets ?? {}), ...fresh.markets } };
     publish(true);
   }
 
@@ -52,11 +56,33 @@ function createStore(initial: Snapshot | null) {
   let ping: ReturnType<typeof setInterval> | undefined;
   let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
 
+  function subscribeCandle(coin: string) {
+    if (ws?.readyState === 1) ws.send(JSON.stringify({ method: "subscribe", subscription: { type: "candle", coin, interval: "5m" } }));
+  }
+
+  // Load candles for a coin the first time something on screen needs it.
+  async function ensure(coin: string) {
+    if (wanted.has(coin) && (work?.markets[coin] || loading.has(coin))) return;
+    wanted.add(coin);
+    loading.add(coin);
+    try {
+      const m = await fetchCandles(coin, { cache: "no-store" });
+      if (m && work) {
+        work.markets[coin] = { ...m, px: work.mids[coin] ?? m.px };
+        publish(true);
+      }
+      subscribeCandle(coin);
+    } catch {} finally { loading.delete(coin); }
+  }
+
   function applyMids(mids: Record<string, string>) {
     if (!work) return;
-    for (const c of COINS) {
-      const m = work.markets[c];
-      if (m && mids[c] !== undefined) m.px = +mids[c];
+    for (const k in mids) {
+      if (k.startsWith("@")) continue; // spot pairs, not perps
+      const v = +mids[k];
+      work.mids[k] = v;
+      const m = work.markets[k];
+      if (m) m.px = v;
     }
     if (state.status !== "live") setStatus("live");
     publish();
@@ -71,9 +97,8 @@ function createStore(initial: Snapshot | null) {
       if (!work) return;
       // Without the candle stream, keep the current candle up to date ourselves...
       const slot = Math.floor(Date.now() / STEP) * STEP;
-      for (const c of COINS) {
+      for (const c in work.markets) {
         const m = work.markets[c];
-        if (!m) continue;
         const last = m.t.length - 1;
         if (slot > m.t[last]) upsertCandle(m, slot, m.px, m.px, m.px, m.px);
         else upsertCandle(m, slot, m.o[last], Math.max(m.h[last], m.px), Math.min(m.l[last], m.px), m.px);
@@ -102,7 +127,7 @@ function createStore(initial: Snapshot | null) {
       applyMids(msg.data.mids as Record<string, string>);
     } else if (msg.channel === "candle") {
       const k = msg.data as { t: number; s: string; i: string; o: string; h: string; l: string; c: string };
-      const m = work.markets[k.s as Coin];
+      const m = work.markets[k.s];
       if (!m || k.i !== "5m") return;
       upsertCandle(m, k.t, +k.o, +k.h, +k.l, +k.c);
       publish();
@@ -115,13 +140,12 @@ function createStore(initial: Snapshot | null) {
     ws = sock;
     sock.onopen = () => {
       retry = 0;
-      const send = (subscription: object) => ws?.send(JSON.stringify({ method: "subscribe", subscription }));
-      send({ type: "allMids" });
-      COINS.forEach((coin) => send({ type: "candle", coin, interval: "5m" }));
+      sock.send(JSON.stringify({ method: "subscribe", subscription: { type: "allMids" } }));
+      wanted.forEach(subscribeCandle);
       clearInterval(ping);
       // Hyperliquid closes quiet connections, so say hello every 30 seconds.
-      ping = setInterval(() => ws?.readyState === 1 && ws.send(JSON.stringify({ method: "ping" })), 30000);
-      // Fill in any candles missed since the page was built or the connection dropped.
+      ping = setInterval(() => sock.readyState === 1 && sock.send(JSON.stringify({ method: "ping" })), 30000);
+      // Fill in anything missed since the page was built or the connection dropped.
       reload().catch(() => {});
     };
     sock.onmessage = onMessage;
@@ -138,6 +162,17 @@ function createStore(initial: Snapshot | null) {
   return {
     get: () => state,
     getServer: () => first,
+    ensure,
+    // Add candles the server already loaded for this page (no extra request).
+    seed(markets: Record<string, MarketData>) {
+      if (!work) return;
+      let changed = false;
+      for (const c in markets) {
+        wanted.add(c);
+        if (!work.markets[c]) { work.markets[c] = copy(markets[c]); work.markets[c].px = work.mids[c] ?? markets[c].px; changed = true; subscribeCandle(c); }
+      }
+      if (changed) publish(true);
+    },
     subscribe(l: () => void) { listeners.add(l); return () => listeners.delete(l); },
     start() {
       stopped = false;
@@ -148,13 +183,8 @@ function createStore(initial: Snapshot | null) {
       // 24h change and funding don't come through the websocket; refresh them every minute.
       const ctxTimer = setInterval(async () => {
         try {
-          const ctx = await fetchContexts({ cache: "no-store" });
-          if (!work) return;
-          for (const c of COINS) {
-            const m = work.markets[c], x = ctx[c];
-            if (m && x) { m.prevDay = x.prevDay; m.funding = x.funding; }
-          }
-          publish();
+          const { ctx } = await fetchContexts({ cache: "no-store" });
+          if (work) { work.ctx = ctx; publish(); }
         } catch {}
       }, 60000);
       return () => {
@@ -178,9 +208,29 @@ export function MarketProvider({ initial, children }: { initial: Snapshot | null
   return <MarketContext.Provider value={store}>{children}</MarketContext.Provider>;
 }
 
-// Any component can call useMarket() to get the latest prices and connection status.
-export function useMarket(): State {
+function useStore() {
   const store = useContext(MarketContext);
   if (!store) throw new Error("useMarket must be used inside <MarketProvider>");
+  return store;
+}
+
+// Any component can call useMarket() to get the latest prices and connection status.
+export function useMarket(): State {
+  const store = useStore();
   return useSyncExternalStore(store.subscribe, store.get, store.getServer);
+}
+
+// Make sure candles for this coin are loaded (and streaming).
+export function useCoin(coin: string) {
+  const store = useStore();
+  useEffect(() => { store.ensure(coin); }, [store, coin]);
+}
+
+// Hand candles the server already fetched for this page to the live store
+// (after the page has loaded, so the first render matches the server's HTML;
+// until then cards use the same candles passed to them directly).
+export function SeedMarkets({ markets }: { markets: Record<string, MarketData> }) {
+  const store = useStore();
+  useEffect(() => { store.seed(markets); }, [store, markets]);
+  return null;
 }
