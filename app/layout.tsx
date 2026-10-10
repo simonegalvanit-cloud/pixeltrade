@@ -5,6 +5,7 @@ import { MarketProvider } from "@/components/Market";
 import Providers from "@/components/Providers";
 import Tape from "@/components/Tape";
 import { ToastProvider } from "@/components/Toast";
+import AutoDeposit from "@/components/AutoDeposit";
 import { CORE, fetchSnapshot, type Snapshot } from "@/lib/hyperliquid";
 import "./globals.css";
 
@@ -44,6 +45,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <Providers>
         <MarketProvider initial={snapshot}>
           <ToastProvider>
+            <AutoDeposit />
             <Tape />
             <Header />
             <main className="page">{children}</main>

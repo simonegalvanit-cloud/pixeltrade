@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { money } from "@/lib/format";
+import { MIN_DEPOSIT } from "@/lib/arbitrum";
 import { signIn, useSession } from "./Session";
 import { useToast } from "./Toast";
 
@@ -13,6 +14,13 @@ export default function WalletPanel() {
   const { ready, authenticated, member } = useSession();
   const toast = useToast();
   const [bal, setBal] = useState<Bal | null>(null);
+
+  const [dep, setDep] = useState<{ hash: string; amount: string } | null>(null);
+  useEffect(() => {
+    const on = (e: Event) => { setDep((e as CustomEvent).detail); setTimeout(() => load(), 30000); };
+    window.addEventListener("perpy:deposit", on);
+    return () => window.removeEventListener("perpy:deposit", on);
+  });
 
   const load = useCallback(async () => {
     if (!member) return;
@@ -44,6 +52,14 @@ export default function WalletPanel() {
           <div><span>ETH for fees</span><b>{bal?.eth == null ? "…" : bal.eth.toFixed(5)}</b></div>
           <div><span>Trading account</span><b className="up">{bal?.hl ? money(bal.hl.accountValue) : "…"}</b></div>
         </div>
+      </div>
+
+      <div className="box">
+        <h3>3 · Auto-deposit <small className="up">ON</small></h3>
+        <p>When your wallet holds <b>{MIN_DEPOSIT} USDC or more</b>, perpy moves it into your trading account automatically while you&apos;re on the site. No buttons, no popups.</p>
+        {bal && (bal.usdc ?? 0) > 0 && (bal.usdc ?? 0) < MIN_DEPOSIT && <p className="warn">You have {money(bal.usdc ?? 0)} USDC. Top up to at least {MIN_DEPOSIT} USDC: smaller amounts can&apos;t be moved (Hyperliquid would lose them).</p>}
+        {bal && (bal.usdc ?? 0) >= MIN_DEPOSIT && (bal.eth ?? 0) < 0.00001 && <p className="warn">Waiting for a little ETH on Arbitrum (about $1) to pay the network fee. Send it to the address above and your USDC moves automatically.</p>}
+        {dep && <p className="muted mono" style={{ fontSize: 12 }}>Moving {dep.amount} USDC… <a className="cyan" href={`https://arbiscan.io/tx/${dep.hash}`} target="_blank" rel="noopener noreferrer">view on Arbiscan ↗</a>. Your trading account updates in about a minute.</p>}
       </div>
 
       <p className="muted" style={{ fontSize: 13 }}>Next: trading right inside perpy (coming in the next update). Until then, <Link className="cyan" href="/learn">see how a trade works</Link>.</p>
