@@ -43,9 +43,13 @@ Next.js (App Router, TypeScript), Supabase (later), Vercel.
 - lib/hyperliquid.ts: Hyperliquid info API + websocket constants.
 - lib/trading.ts: players (member + portfolio stats), positions with TP/SL,
   closed trades, win rate, streaks, levels, classes.
-- lib/arbitrum.ts + components/WalletPanel.tsx: deposits = USDC transfer to
-  Hyperliquid's Bridge2 on Arbitrum (min 5 USDC, smaller is LOST). Bridge
-  verified active on-chain 2026-10-10 but docs call it legacy: move to CCTP.
+- lib/arbitrum.ts + components/AutoDeposit.tsx: AUTOMATIC deposits. While a
+  member is on the site, every 20s: if their wallet has >= 5 USDC and a bit of
+  ETH (user pays the fee), all USDC is sent to Hyperliquid's Bridge2 from their
+  own Privy wallet with showWalletUIs:false (no popup). 3-min cooldown in
+  localStorage prevents double sends. Under 5 USDC is never sent (it'd be
+  LOST). Bridge verified active on-chain 2026-10-10; docs call it legacy:
+  move to CCTP. WalletPanel shows address, balances and auto-deposit status.
 - components/Market.tsx: live prices (websocket, reconnect, polling backup).
 - components/: TradeCard, Slip, PostSlip, Feed, Pit, Side, Tape, Header,
   Account (badge, welcome form), Search (find @handle), Social (GG, Tail,

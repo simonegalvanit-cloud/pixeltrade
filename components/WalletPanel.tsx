@@ -2,25 +2,25 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { useSendTransaction } from "@privy-io/react-auth";
-import { encodeFunctionData, parseAbi, parseUnits } from "viem";
-import { ARB_CHAIN_ID, HL_BRIDGE, MIN_DEPOSIT, USDC } from "@/lib/arbitrum";
 import { money } from "@/lib/format";
+import { MIN_DEPOSIT } from "@/lib/arbitrum";
 import { signIn, useSession } from "./Session";
 import { useToast } from "./Toast";
 
 type Bal = { usdc: number | null; eth: number | null; hl: { accountValue: number; withdrawable: number } | null };
 
-// Your perpy wallet: address, balances, and moving USDC into Hyperliquid to trade.
+// Your perpy wallet: address and balances.
 export default function WalletPanel() {
   const { ready, authenticated, member } = useSession();
   const toast = useToast();
-  const { sendTransaction } = useSendTransaction();
   const [bal, setBal] = useState<Bal | null>(null);
-  const [amount, setAmount] = useState("");
-  const [ok, setOk] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [tx, setTx] = useState<string | null>(null);
+
+  const [dep, setDep] = useState<{ hash: string; amount: string } | null>(null);
+  useEffect(() => {
+    const on = (e: Event) => { setDep((e as CustomEvent).detail); setTimeout(() => load(), 30000); };
+    window.addEventListener("perpy:deposit", on);
+    return () => window.removeEventListener("perpy:deposit", on);
+  });
 
   const load = useCallback(async () => {
     if (!member) return;
@@ -31,28 +31,6 @@ export default function WalletPanel() {
   if (!ready) return null;
   if (!authenticated || !member) {
     return <div className="welcome"><p>Sign up to get your perpy wallet.</p><button type="button" className="btn go" onClick={() => signIn()}>Sign up / Log in</button></div>;
-  }
-
-  const n = Number(amount);
-  const usdc = bal?.usdc ?? 0;
-  const problem =
-    !amount ? "" :
-    !(n > 0) ? "Enter an amount." :
-    n < MIN_DEPOSIT ? `Minimum is ${MIN_DEPOSIT} USDC. Smaller deposits are lost forever.` :
-    n > usdc ? "That's more USDC than your wallet has on Arbitrum." :
-    (bal?.eth ?? 0) <= 0 ? "You need a tiny bit of ETH on Arbitrum to pay the network fee (about $0.01)." : "";
-
-  async function deposit() {
-    if (problem || !ok || busy) return;
-    setBusy(true);
-    try {
-      const data = encodeFunctionData({ abi: parseAbi(["function transfer(address to, uint256 amount) returns (bool)"]), functionName: "transfer", args: [HL_BRIDGE, parseUnits(String(n), 6)] });
-      const r = await sendTransaction({ to: USDC, data, chainId: ARB_CHAIN_ID }, { uiOptions: { description: `Deposit ${n} USDC into your Hyperliquid trading account.` } });
-      setTx(r.hash);
-      setAmount(""); setOk(false);
-      toast("Deposit sent. It arrives in about a minute.");
-      setTimeout(load, 20000); setTimeout(load, 60000);
-    } catch (e) { toast((e as Error).message.slice(0, 70)); } finally { setBusy(false); }
   }
 
   return (
@@ -77,18 +55,11 @@ export default function WalletPanel() {
       </div>
 
       <div className="box">
-        <h3>3 · Move USDC into your trading account <small>HYPERLIQUID</small></h3>
-        <div className="dep">
-          <div className="fld">
-            <span>Amount (USDC)</span>
-            <div className="at"><b>$</b><input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))} placeholder={`${MIN_DEPOSIT} or more`} /></div>
-          </div>
-          <button type="button" className="btn sm" onClick={() => setAmount(String(Math.floor(usdc * 100) / 100))} disabled={usdc < MIN_DEPOSIT}>Max</button>
-        </div>
-        {problem && <p className="warn">{problem}</p>}
-        <label className="chk"><input type="checkbox" checked={ok} onChange={(e) => setOk(e.target.checked)} /> I understand this moves real money into Hyperliquid, where I can trade with leverage and lose it.</label>
-        <button type="button" className="btn go" disabled={!!problem || !amount || !ok || busy} onClick={deposit}>{busy ? "Confirm in the popup…" : "Deposit to Hyperliquid"}</button>
-        {tx && <p className="muted mono" style={{ fontSize: 12 }}>Sent: <a className="cyan" href={`https://arbiscan.io/tx/${tx}`} target="_blank" rel="noopener noreferrer">view on Arbiscan ↗</a>. Your trading account updates in about a minute.</p>}
+        <h3>3 · Auto-deposit <small className="up">ON</small></h3>
+        <p>When your wallet holds <b>{MIN_DEPOSIT} USDC or more</b>, perpy moves it into your trading account automatically while you&apos;re on the site. No buttons, no popups.</p>
+        {bal && (bal.usdc ?? 0) > 0 && (bal.usdc ?? 0) < MIN_DEPOSIT && <p className="warn">You have {money(bal.usdc ?? 0)} USDC. Top up to at least {MIN_DEPOSIT} USDC: smaller amounts can&apos;t be moved (Hyperliquid would lose them).</p>}
+        {bal && (bal.usdc ?? 0) >= MIN_DEPOSIT && (bal.eth ?? 0) < 0.00001 && <p className="warn">Waiting for a little ETH on Arbitrum (about $1) to pay the network fee. Send it to the address above and your USDC moves automatically.</p>}
+        {dep && <p className="muted mono" style={{ fontSize: 12 }}>Moving {dep.amount} USDC… <a className="cyan" href={`https://arbiscan.io/tx/${dep.hash}`} target="_blank" rel="noopener noreferrer">view on Arbiscan ↗</a>. Your trading account updates in about a minute.</p>}
       </div>
 
       <p className="muted" style={{ fontSize: 13 }}>Next: trading right inside perpy (coming in the next update). Until then, <Link className="cyan" href="/learn">see how a trade works</Link>.</p>

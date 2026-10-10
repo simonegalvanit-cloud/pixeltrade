@@ -21,6 +21,8 @@ export async function GET(req: Request) {
   return json({
     usdc: usdc === null ? null : Number(usdc) / 1e6,
     eth: eth === null ? null : Number(eth) / 1e18,
+    usdcRaw: usdc === null ? null : usdc.toString(), // exact amount, 6 decimals
+    ethRaw: eth === null ? null : eth.toString(), // exact amount in wei
     hl: hl ? { accountValue: +hl.marginSummary.accountValue, withdrawable: +(hl as unknown as { withdrawable: string }).withdrawable } : null,
   });
 }
