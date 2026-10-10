@@ -1,16 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { LikeIcon } from "./Icons";
 
 // These only change what you see on screen for now. Nothing is saved yet.
 
-export function LikeButton({ count, className = "pill" }: { count: number; className?: string }) {
+// "GG" = good game, the arcade version of a like.
+export function LikeButton({ count, className = "btn gg" }: { count: number; className?: string }) {
   const [liked, setLiked] = useState(false);
   return (
-    <button className={`${className}${liked ? " on" : ""}`} type="button" aria-label="Like" aria-pressed={liked}
+    <button className={`${className}${liked ? " on" : ""}`} type="button" aria-label="GG (like)" aria-pressed={liked}
       onClick={(e) => { e.stopPropagation(); setLiked(!liked); }}>
-      <LikeIcon /><span>{count + (liked ? 1 : 0)}</span>
+      GG <span className="mono">{count + (liked ? 1 : 0)}</span>
     </button>
   );
 }
@@ -18,9 +18,9 @@ export function LikeButton({ count, className = "pill" }: { count: number; class
 export function FollowButton({ small, className = "" }: { small?: boolean; className?: string }) {
   const [following, setFollowing] = useState(false);
   return (
-    <button className={`btn${following ? "" : " solid"}${small ? " sm" : ""} ${className}`.trim()} type="button" aria-pressed={following}
+    <button className={`btn${following ? " on" : " cy"}${small ? " sm" : ""} ${className}`.trim()} type="button" aria-pressed={following}
       onClick={(e) => { e.stopPropagation(); setFollowing(!following); }}>
-      {following ? "Following" : "Follow"}
+      {following ? "✓ Following" : "+ Follow"}
     </button>
   );
 }

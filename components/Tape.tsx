@@ -5,7 +5,7 @@ import { fmtPx, pct, usd } from "@/lib/format";
 import { dayChange, livePosition } from "@/lib/positions";
 import { useMarket } from "./Market";
 
-const LABEL = { connecting: "Connecting", live: "Live", reconnecting: "Reconnecting", offline: "Offline" };
+const LABEL = { connecting: "Loading", live: "Live", reconnecting: "Reconnecting", offline: "Offline" };
 
 // Scrolling ticker at the very top: live prices with 24h change, mixed with
 // what traders are up or down right now. Printed twice so the loop is seamless.
@@ -29,7 +29,7 @@ export default function Tape() {
   return (
     <div className="tape" aria-label="Live market and trader ticker">
       <span className={`status${status === "live" ? "" : status === "offline" ? " off" : " wait"}`} role="status">
-        <i />{LABEL[status]}{status === "live" && " · Hyperliquid"}
+        <i />{LABEL[status]}{status === "live" && " · HL"}
       </span>
       <div className="track">
         {all.map((t, i) => (

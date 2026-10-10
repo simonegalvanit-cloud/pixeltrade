@@ -24,29 +24,25 @@ export function LiveNow({ handle }: { handle: string }) {
   const d = POSITIONS[key];
   const p = livePosition(key, snap);
   return (
-    <span>In a trade now: <b>{d.coin} {d.side > 0 ? "long" : "short"} {d.lev}x{p && ` · ${usd(p.pnl)}`}</b></span>
+    <span>In a match now: <b className={p && p.pnl < 0 ? "down" : "up"}>{d.coin} {d.side > 0 ? "long" : "short"} ×{d.lev}{p && ` · ${usd(p.pnl)}`}</b></span>
   );
 }
 
-// The trader's open position as a mini receipt that moves with the market.
+// The trader's open position as a live match card in their history.
 export function OpenTile({ handle }: { handle: string }) {
   const { snap } = useMarket();
   const key = positionKeyFor(handle);
   if (!key) return null;
   const d = POSITIONS[key];
   const p = livePosition(key, snap);
-  const col = !p ? "var(--ink)" : p.pnl >= 0 ? "var(--up)" : "var(--down)";
+  const up = !p || p.pnl >= 0;
   const post = POSTS.find((x) => x.trade.kind === "open" && x.trade.pos === key);
   return (
-    <Link className="mini-rc rc-wrap" href={post ? `/post/${post.id}` : "#"}>
-      <div className="rc">
-        <div className="hd"><span>No. live</span><span className="up">● open</span></div>
-        <hr />
-        <div className="mk"><span className={`coin ${d.coin}`}>{COIN_SYMBOL[d.coin]}</span><span className="sym" style={{ fontSize: 17 }}>{d.coin}</span><span className="muted" style={{ marginLeft: "auto", fontSize: 12 }}>{d.side > 0 ? "LONG" : "SHORT"} {d.lev}X</span></div>
-        <div className="pv" style={{ color: col }}>{p ? usd(p.pnl, 0) : "…"}</div>
-        <div className="muted" style={{ fontSize: 11.5 }}>{p ? `${pct(p.roe)} on margin, live` : "loading"}</div>
-        {p && <svg className="sp" viewBox="0 0 100 36" preserveAspectRatio="none" aria-hidden="true"><path d={toPath(p.pts, 100, 36, 3, 3)} fill="none" stroke={col} strokeWidth="2" vectorEffect="non-scaling-stroke" /></svg>}
-      </div>
+    <Link className="hcard o" href={post ? `/post/${post.id}` : "#"}>
+      <div className="top2"><span className={`coin ${d.coin}`}>{COIN_SYMBOL[d.coin]}</span><span className="sym">{d.coin}</span><span className="tag cy">● Live</span></div>
+      <div className={`pv ${up ? "up" : "down"}`}>{p ? usd(p.pnl, 0) : "…"}</div>
+      <small>{d.side > 0 ? "Long" : "Short"} ×{d.lev}{p ? ` · ${pct(p.roe)} ROE` : ""}</small>
+      {p && <svg className={`sp ${up ? "up" : "down"}`} viewBox="0 0 100 36" preserveAspectRatio="none" aria-hidden="true"><path d={toPath(p.pts, 100, 36, 3, 3)} fill="none" stroke="currentColor" strokeWidth="2" vectorEffect="non-scaling-stroke" /></svg>}
     </Link>
   );
 }
@@ -59,8 +55,8 @@ export function CoinSpark({ coin, offset, color }: { coin: Coin; offset: number;
   const end = Math.max(24, m.c.length - offset);
   const pts = m.c.slice(end - 24, end);
   return (
-    <svg className="sp" viewBox="0 0 100 36" preserveAspectRatio="none" aria-hidden="true">
-      <path d={toPath(pts, 100, 36, 3, 3)} fill="none" stroke={color} strokeWidth="2" vectorEffect="non-scaling-stroke" />
+    <svg className="sp" viewBox="0 0 100 36" preserveAspectRatio="none" aria-hidden="true" style={{ color }}>
+      <path d={toPath(pts, 100, 36, 3, 3)} fill="none" stroke="currentColor" strokeWidth="2" vectorEffect="non-scaling-stroke" />
     </svg>
   );
 }

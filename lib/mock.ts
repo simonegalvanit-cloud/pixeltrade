@@ -19,6 +19,8 @@ export type Person = {
   followers: string;
   alerts: string;
   trades: number;
+  klass: string; // their "character class" in the arcade
+  streak: number; // wins in a row
   stats: { pnl30d: string; winRate: string; avgLev: string; best: string };
 };
 
@@ -30,6 +32,7 @@ export const PEOPLE: Record<string, Person> = {
     bio: "BTC and ETH swing trader. Max 5x, always a stop. Posting every trade, wins and losses.",
     wallet: "0x7a3f…c91e", link: "x.com/mayatrades", joined: "Joined April 2026",
     following: "208", followers: "1,904", alerts: "312", trades: 74,
+    klass: "SWING", streak: 3,
     stats: { pnl30d: "+$4,812", winRate: "61%", avgLev: "3.8x", best: "+$1,250" },
   },
   "kaia.trades": {
@@ -37,6 +40,7 @@ export const PEOPLE: Record<string, Person> = {
     bio: "ETH maximalist with a stop loss. Swing trades on the 4h.",
     wallet: "0x41c2…07ad", joined: "Joined February 2026",
     following: "190", followers: "6,820", alerts: "1.2K", trades: 121,
+    klass: "WAVE RIDER", streak: 4,
     stats: { pnl30d: "+$9,340", winRate: "58%", avgLev: "6.2x", best: "+$3,410" },
   },
   liqhunter: {
@@ -44,6 +48,7 @@ export const PEOPLE: Record<string, Person> = {
     bio: "Shorting euphoria, buying fear. Mostly SOL and BTC, 3–5x.\nEvery trade posted, including the ugly ones.",
     wallet: "0x9e1d…4b20", link: "t.me/liqhunter", joined: "Joined March 2026",
     following: "412", followers: "12.4K", alerts: "3.1K", trades: 188,
+    klass: "SNIPER", streak: 7,
     stats: { pnl30d: "+$48.2K", winRate: "64%", avgLev: "4.1x", best: "+$8.9K" },
   },
   fundingfarmer: {
@@ -51,6 +56,7 @@ export const PEOPLE: Record<string, Person> = {
     bio: "Low leverage, funding-driven trades. Patience over prediction.",
     wallet: "0x2b88…e5f1", joined: "Joined January 2026",
     following: "77", followers: "4,410", alerts: "690", trades: 96,
+    klass: "FARMER", streak: 5,
     stats: { pnl30d: "+$7,880", winRate: "71%", avgLev: "2.1x", best: "+$2,050" },
   },
   mossy: {
@@ -58,6 +64,7 @@ export const PEOPLE: Record<string, Person> = {
     bio: "Auto-posting every trade. Learning in public.",
     wallet: "0xc03e…91aa", joined: "Joined May 2026",
     following: "54", followers: "311", alerts: "18", trades: 39,
+    klass: "ROOKIE", streak: 1,
     stats: { pnl30d: "+$3,105", winRate: "55%", avgLev: "3.0x", best: "+$940" },
   },
   degenrin: {
@@ -65,6 +72,7 @@ export const PEOPLE: Record<string, Person> = {
     bio: "Too much leverage, working on it.",
     wallet: "0x5d7a…2c3b", joined: "Joined June 2026",
     following: "320", followers: "980", alerts: "41", trades: 210,
+    klass: "DEGEN", streak: 0,
     stats: { pnl30d: "+$1,940", winRate: "47%", avgLev: "8.4x", best: "+$1,120" },
   },
   candlemonk: {
@@ -72,6 +80,7 @@ export const PEOPLE: Record<string, Person> = {
     bio: "Price action only. BTC majors, weekly levels.",
     wallet: "0x88f0…d412", joined: "Joined February 2026",
     following: "140", followers: "8,050", alerts: "1.9K", trades: 143,
+    klass: "MONK", streak: 3,
     stats: { pnl30d: "+$31.9K", winRate: "59%", avgLev: "4.0x", best: "+$6,300" },
   },
   "zoe.perps": {
@@ -79,6 +88,7 @@ export const PEOPLE: Record<string, Person> = {
     bio: "Memecoin shorts and coffee.",
     wallet: "0x3a19…b7e0", joined: "Joined July 2026",
     following: "260", followers: "1,120", alerts: "64", trades: 58,
+    klass: "SHORT QUEEN", streak: 2,
     stats: { pnl30d: "+$1,620", winRate: "62%", avgLev: "5.0x", best: "+$700" },
   },
 };
@@ -218,6 +228,20 @@ export const TILES: [Coin, string, string, "w" | "l" | "o", string][] = [
   ["ETH", "Long 6x", "+$2,410", "w", "41%"],
   ["SOL", "Long 5x", "−$384", "l", "−18%"],
 ];
+
+// Arcade level: one level per ~4.5 trades posted.
+export function levelOf(p: Person) {
+  return Math.max(1, Math.round(p.trades / 4.5));
+}
+
+// Parse "+$48.2K" style strings into a number, for sorting the high scores.
+export function pnlValue(s: string) {
+  const n = parseFloat(s.replace(/[^\d.]/g, "")) * (/K$/i.test(s) ? 1000 : 1);
+  return /^[−-]/.test(s) ? -n : n;
+}
+
+// Everyone, best 30-day PnL first (the hi-score table).
+export const RANKED = Object.values(PEOPLE).sort((a, b) => pnlValue(b.stats.pnl30d) - pnlValue(a.stats.pnl30d));
 
 // Which open position (if any) belongs to a trader.
 export function positionKeyFor(handle: string): string | undefined {

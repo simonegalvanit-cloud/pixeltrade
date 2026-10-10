@@ -25,17 +25,17 @@ export default function Pit() {
           <Link
             key={key}
             href={`/u/${d.handle}`}
-            className={`cell ${dir} s${d.tile}${heat > 0.45 ? " hot" : ""}${d.handle === ME ? " you" : ""}`}
+            className={`cell ${dir} s${d.tile}${d.handle === ME ? " you" : ""}`}
             style={{ "--h": heat.toFixed(3) } as React.CSSProperties}
             aria-label={`${person.name}: ${d.coin} ${side} ${d.lev}x${p ? `, ${usdShort(p.pnl)}` : ""}`}
           >
             <div>
-              <div className="who"><Avatar handle={d.handle} size={d.tile >= 3 ? 26 : 20} /><span>{person.name.split(" ")[0]}</span></div>
-              {d.tile > 1 && <div className="pos" style={{ marginTop: 4 }}>{d.coin} {side} {d.lev}x</div>}
+              <div className="who"><Avatar handle={d.handle} size={d.tile >= 3 ? 28 : 22} /><span>{person.name.split(" ")[0]}</span></div>
+              {d.tile > 1 && <div className="pos" style={{ marginTop: 4 }}>{d.coin} {side} ×{d.lev}</div>}
             </div>
             <div>
               <div className="pv">{p ? usdShort(p.pnl) : "…"}</div>
-              {d.tile > 1 && p && <div className="roe">{pct(p.roe)} roe</div>}
+              {d.tile > 1 && p && <div className="roe">{pct(p.roe)} ROE</div>}
             </div>
           </Link>
         );

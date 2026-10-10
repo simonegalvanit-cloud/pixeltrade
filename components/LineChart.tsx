@@ -3,7 +3,7 @@ import type { ChartMode } from "./ChartMode";
 
 export type Level = { v: number; kind: "t" | "e" | "s"; label: string };
 
-const LEVEL_COLOR = { t: "var(--up)", e: "var(--muted)", s: "var(--down)" };
+const LEVEL_COLOR = { t: "var(--up)", e: "rgba(255,255,255,.55)", s: "var(--down)" };
 
 // Price chart, drawn as a line with a soft fill or as candles with wicks.
 // Each candle is 5 minutes: the body runs from open to close (green if price
@@ -67,7 +67,7 @@ export default function LineChart({
         ) : (
           <>
             <path d={`${d}L${W},${h}L0,${h}Z`} fill={`url(#${gid})`} />
-            <path d={d} fill="none" stroke="currentColor" strokeWidth="2.2" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
+            <path className="ln" d={d} fill="none" stroke="currentColor" strokeWidth="2.2" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
           </>
         )}
       </svg>

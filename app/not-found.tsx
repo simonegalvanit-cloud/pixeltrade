@@ -3,8 +3,9 @@ import Link from "next/link";
 export default function NotFound() {
   return (
     <div className="empty">
+      <h1>GAME OVER</h1>
       <p>This page doesn&apos;t exist.</p>
-      <Link className="btn brand" href="/">Back to the feed</Link>
+      <Link className="btn go" href="/">Continue? Back to the Pit</Link>
     </div>
   );
 }

@@ -1,26 +1,30 @@
 import type { Metadata, Viewport } from "next";
-import { Bricolage_Grotesque, Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Press_Start_2P, Silkscreen } from "next/font/google";
 import { Dock, Header } from "@/components/Header";
-import Tape from "@/components/Tape";
 import { MarketProvider } from "@/components/Market";
+import Tape from "@/components/Tape";
 import { ToastProvider } from "@/components/Toast";
 import { fetchSnapshot, type Snapshot } from "@/lib/hyperliquid";
 import "./globals.css";
 
 // Fonts. Next.js downloads them at build time and serves them itself.
+// Press Start 2P = big pixel titles, Silkscreen = pixel labels and buttons,
+// Geist = reading text, Geist Mono = numbers.
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
 const mono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" });
-const bricolage = Bricolage_Grotesque({ subsets: ["latin"], weight: ["700", "800"], variable: "--font-bricolage" });
+const pixel = Press_Start_2P({ subsets: ["latin"], weight: "400", variable: "--font-pixel" });
+const silk = Silkscreen({ subsets: ["latin"], weight: ["400", "700"], variable: "--font-silk" });
 
 export const metadata: Metadata = {
-  title: "perpy · show the receipts",
-  description: "Verified perp trades from real wallets, printed as receipts.",
+  title: "perpy · trading is a game, play it in public",
+  description: "Verified perp trades from real wallets. Live from Hyperliquid.",
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  themeColor: "#07060D",
 };
 
 // Pages are rebuilt at most once a minute with fresh Hyperliquid prices, so
@@ -35,16 +39,10 @@ async function loadSnapshot(): Promise<Snapshot | null> {
   }
 }
 
-// Runs before the page paints so a saved light/dark choice doesn't flash.
-const themeScript = `try{var t=localStorage.getItem("theme");if(t)document.documentElement.dataset.theme=t}catch(e){}`;
-
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const snapshot = await loadSnapshot();
   return (
-    <html lang="en" className={`${geist.variable} ${mono.variable} ${bricolage.variable}`} suppressHydrationWarning>
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
-      </head>
+    <html lang="en" className={`${geist.variable} ${mono.variable} ${pixel.variable} ${silk.variable}`}>
       <body>
         <MarketProvider initial={snapshot}>
           <ToastProvider>

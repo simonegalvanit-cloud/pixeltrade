@@ -22,7 +22,7 @@ const STEPS = [
   { title: "Put in your margin", ms: 3600 },
   { title: "Set take profit and stop loss", ms: 3400 },
   { title: "Open the trade", ms: 4400 },
-  { title: "Your receipt hits the Pit", ms: 4200 },
+  { title: "You enter the Pit", ms: 4200 },
 ];
 
 const clamp = (x: number) => Math.max(0, Math.min(1, x));
@@ -135,7 +135,7 @@ export default function TradeDemo() {
         ))}
       </ol>
       <div className="ctrl">
-        <button type="button" className="btn solid sm" onClick={() => { if (!playing) setT(0); setPlaying(!playing); }}>{playing ? "❚❚ Pause" : "▶ Play"}</button>
+        <button type="button" className="btn go sm" onClick={() => { if (!playing) setT(0); setPlaying(!playing); }}>{playing ? "❚❚ Pause" : "▶ Play"}</button>
         <button type="button" className="btn sm" onClick={() => jump(Math.max(0, step - 1))}>← Back</button>
         <button type="button" className="btn sm" onClick={() => jump((step + 1) % STEPS.length)}>Next →</button>
       </div>
@@ -202,7 +202,7 @@ export default function TradeDemo() {
                   <>
                     <line x1="0" x2="300" y1={pin(tpPx)} y2={pin(tpPx)} stroke="var(--up)" strokeWidth="1.5" strokeDasharray="4 4" vectorEffect="non-scaling-stroke" />
                     <line x1="0" x2="300" y1={pin(slPx)} y2={pin(slPx)} stroke="var(--down)" strokeWidth="1.5" strokeDasharray="4 4" vectorEffect="non-scaling-stroke" />
-                    <path d={spark.map((v, i) => `${i ? "L" : "M"}${((i / (spark.length - 1)) * 300).toFixed(1)},${yy(v).toFixed(1)}`).join("")} fill="none" stroke="var(--ink)" strokeWidth="1.8" vectorEffect="non-scaling-stroke" />
+                    <path d={spark.map((v, i) => `${i ? "L" : "M"}${((i / (spark.length - 1)) * 300).toFixed(1)},${yy(v).toFixed(1)}`).join("")} fill="none" stroke="var(--cyan)" strokeWidth="1.8" vectorEffect="non-scaling-stroke" />
                   </>
                 );
               })()}
@@ -211,41 +211,37 @@ export default function TradeDemo() {
           )}
 
           <button type="button" tabIndex={-1} ref={ref(6)} className={`openbtn${pressing ? " press" : ""}${opened ? " done" : ""}`}>
-            {opened ? "✓ Filled" : `Open long ${Math.round(lev)}x`}
+            {opened ? "✓ FILLED" : `OPEN LONG ×${Math.round(lev)}`}
           </button>
         </div>
       </div>
 
       <div className="out">
-        <div className={`pbar${printP > 0 && printP < 1 ? " busy" : ""}`} aria-hidden="true"><span>perpy receipt printer</span><i /></div>
-        {/* the receipt that prints out of the slot */}
-        <div className="printer" style={{ height: `${printP * 262}px` }} aria-hidden={printP === 0}>
-          <div className="rc paper">
-            <div className="hd"><span>receipt <b>No. 000001</b></span><span>now</span></div>
-            <hr />
-            <div className="mk"><span className="coin BTC">₿</span><span className="sym">BTC-PERP</span></div>
-            <div className="row" style={{ marginTop: 6 }}><span>Side</span><b className="up">LONG {LEV}X</b></div>
+        <div className={`pbar${printP > 0 && printP < 1 ? " busy" : ""}`} aria-hidden="true"><span>MATCH CARD</span><i /></div>
+        {/* the match card that drops out of the slot */}
+        <div className="printer" style={{ height: `${printP * 190}px` }} aria-hidden={printP === 0}>
+          <div className="card">
+            <div className="ttl"><span className="coin BTC">₿</span><b>BTC-PERP</b><span className="tag long">long ×{LEV}</span></div>
             <div className="row"><span>Entry</span><b>{entry ? fmtPx(entry) : "…"}</b></div>
             <div className="row"><span>Size</span><b>{money(size)}</b></div>
-            <div className="row"><span>TP</span><b className="up">{entry ? fmtLevel(tpPx) : "…"}</b></div>
-            <div className="row"><span>SL</span><b className="down">{entry ? fmtLevel(slPx) : "…"}</b></div>
-            <hr className="dbl" />
-            <div className="row"><span>Unrealized</span><b className={pnl >= 0 ? "up" : "down"}>{usd(pnl)}</b></div>
-            <span className="stamp open" style={{ opacity: stampP * 0.85, transform: `rotate(-12deg) scale(${2.2 - 1.2 * stampP})` }}>Open<small>live</small></span>
+            <div className="row"><span>Take profit</span><b className="up">{entry ? fmtLevel(tpPx) : "…"}</b></div>
+            <div className="row"><span>Stop loss</span><b className="down">{entry ? fmtLevel(slPx) : "…"}</b></div>
+            <div className="row" style={{ marginTop: 6 }}><span>Score</span><b className={pnl >= 0 ? "up" : "down"}>{usd(pnl)}</b></div>
+            <span className="ready" style={{ opacity: stampP, transform: `scale(${2 - stampP})` }}>READY!</span>
           </div>
         </div>
 
         <div ref={ref(7)} className={`pittile${posted ? " show" : ""}`}>
-          <span className="who">You · BTC long {LEV}x</span>
+          <span className="who">P1 · BTC long ×{LEV}</span>
           <b className={pnl >= 0 ? "up" : "down"}>{usd(pnl)}</b>
-          <small>posted to the Pit · 312 tailers alerted</small>
+          <small>in the Pit · 312 tailers alerted</small>
         </div>
 
-        {printP === 0 && <p className="out-empty">Your receipt prints here when the trade opens.</p>}
+        {printP === 0 && <p className="out-empty">Your match card drops here when the trade opens.</p>}
       </div>
 
       <div ref={cursor} className={`cursor${clicking ? " click" : ""}`} aria-hidden="true">
-        <svg viewBox="0 0 24 24"><path d="M4 2l15 9-6.5 1.6L9.6 19z" fill="#141414" stroke="#fff" strokeWidth="1.6" strokeLinejoin="round" /></svg>
+        <svg viewBox="0 0 24 24" shapeRendering="crispEdges"><path d="M4 2l15 9-6.5 1.6L9.6 19z" fill="#fff" stroke="#000" strokeWidth="1.6" strokeLinejoin="round" /></svg>
       </div>
     </div>
   );
@@ -261,8 +257,8 @@ function explain(i: number, n: { live: number; liq: number; tpPx: number; slPx: 
     case 3: return `Leverage multiplies the move. At ${LEV}x, every 1% BTC moves is a ${LEV}% gain or loss on your money.`;
     case 4: return `Your $1,000 controls a $${(MARGIN * LEV).toLocaleString("en-US")} position. If BTC drops to about ${p(n.liq)} (−${((1 / LEV - MAINT) * 100).toFixed(1)}%), you're liquidated and lose the $1,000.`;
     case 5: return `Take profit closes the trade automatically at ${p(n.tpPx)} (+$${(MARGIN * LEV * TP).toFixed(0)}). Stop loss gets you out at ${p(n.slPx)} (−$${(MARGIN * LEV * -SL).toFixed(0)}) so one bad trade can't wipe you out.`;
-    case 6: return "One signature and the order fills at the market price. perpy prints your receipt straight from the chain, so nobody can fake it.";
-    case 7: return "Your receipt is posted, your tile lights up in the Pit, and everyone tailing you gets an alert. Win or lose, it's all on the record.";
+    case 6: return "One signature and the order fills at the market price. perpy reads it straight from the chain and makes your match card, so nobody can fake it.";
+    case 7: return "Your match goes live, your tile lights up in the Pit, and everyone tailing you gets an alert. WIN or REKT, it's all on the record.";
     default: return "";
   }
 }

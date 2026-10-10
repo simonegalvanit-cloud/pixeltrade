@@ -8,9 +8,9 @@ export default function Learn() {
   return (
     <>
       <div className="learn-h">
-        <small className="kick">New to perps? Start here</small>
-        <h1>How a trade <em>works</em></h1>
-        <p>Watch a long on Bitcoin go from wallet to receipt in eight steps. The prices are live from Hyperliquid. Click any step to jump to it.</p>
+        <small className="kick">INSERT COIN · NEW TO PERPS?</small>
+        <h1>HOW TO <em>PLAY</em></h1>
+        <p>Watch a long on Bitcoin go from wallet to live match in eight steps. The prices are live from Hyperliquid. Click any step to jump to it.</p>
       </div>
       <TradeDemo />
       <p className="learn-note">
