@@ -5,12 +5,11 @@ import type { MarketData } from "@/lib/hyperliquid";
 import { ago, levelOf, type ClosedTrade, type Player, type Position } from "@/lib/trading";
 import { livePos } from "@/lib/positions";
 import Avatar from "./Avatar";
-import { BellIcon, ShareIcon, VerifiedCheck } from "./Icons";
-import { LikeButton } from "./Buttons";
+import { VerifiedCheck } from "./Icons";
+import { GG, Share, Tail } from "./Social";
 import { useMarket } from "./Market";
 import PostLink from "./PostLink";
 import { ClosedCard, OpenCard } from "./TradeCard";
-import { ToastButton } from "./Toast";
 
 export const Flame = ({ n }: { n: number }) => n > 0 ? (
   <span className="flame" title={`${n} wins in a row`}>
@@ -49,10 +48,10 @@ export default function Slip({ item, market }: { item: Item; market?: MarketData
       {open ? <OpenCard pos={item.pos} market={market} /> : <ClosedCard trade={item.trade} />}
       <div className="vfoot"><span>✓ read from Hyperliquid</span><b>{p.address.slice(0, 6)}…{p.address.slice(-4)}</b></div>
       <div className="acts">
-        <LikeButton count={0} />
-        <ToastButton className="btn" aria-label="Share" message="Link copied"><ShareIcon /></ToastButton>
+        <GG target={open ? `pos:${p.address}:${item.pos.coin}` : `trade:${p.address}:${item.trade.id}`} />
+        <Share path={href} />
         <span className="sp" />
-        <ToastButton className="btn cy" aria-label={`Get alerts when ${p.name} trades`} message="Alerts need an account, coming next"><BellIcon small />Tail</ToastButton>
+        <Tail wallet={p.address} small />
       </div>
     </PostLink>
   );

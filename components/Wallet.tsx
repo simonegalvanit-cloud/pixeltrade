@@ -35,7 +35,7 @@ function set(a: string | null) {
   listeners.forEach((l) => l());
 }
 
-function getProvider(): Provider | null {
+export function getProvider(): Provider | null {
   const injected = (typeof window !== "undefined" && (window as unknown as { ethereum?: Provider }).ethereum) || null;
   return providers[0]?.provider ?? injected;
 }

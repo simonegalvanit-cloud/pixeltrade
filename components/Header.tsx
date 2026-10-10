@@ -2,11 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { shortAddr } from "@/lib/hyperliquid";
-import Avatar from "./Avatar";
 import { BellIcon, HomeIcon, PlusIcon, SearchIcon, TradeBoxIcon } from "./Icons";
 import { ToastButton, useToast } from "./Toast";
-import { ConnectButton, WalletSearch, disconnectWallet, useWallet } from "./Wallet";
+import SignInBadge from "./SignIn";
+import { WalletSearch, useWallet } from "./Wallet";
 
 // A pixel coin, used in the logo.
 export const CoinIcon = ({ className = "coinx" }: { className?: string }) => (
@@ -31,17 +30,7 @@ export function Header() {
         </nav>
         <div className="right">
           <span className="hide-m"><WalletSearch /></span>
-          {address ? (
-            <span className="p1">
-              <Link href={`/u/${address}`} style={{ display: "flex", alignItems: "center", gap: 10 }} aria-label="Your player card">
-                <Avatar seed={address} size={34} label="You" />
-                <span className="t"><small>P1 · CONNECTED</small><b>{shortAddr(address)}</b></span>
-              </Link>
-              <button type="button" className="ibtn hide-m" onClick={disconnectWallet} title="Disconnect" aria-label="Disconnect wallet">✕</button>
-            </span>
-          ) : (
-            <ConnectButton />
-          )}
+          <SignInBadge />
         </div>
       </div>
     </header>
@@ -57,7 +46,7 @@ export function Dock() {
     <nav className="dock" aria-label="Tabs">
       <Link className={path === "/" ? "on" : ""} href="/" aria-label="The Pit"><HomeIcon /></Link>
       <Link className={path === "/scores" ? "on" : ""} href="/scores" aria-label="Hi-scores and wallet search"><SearchIcon /></Link>
-      <ToastButton className="plus" aria-label="Post a trade" message="Posting needs an account, coming next"><PlusIcon /></ToastButton>
+      <ToastButton className="plus" aria-label="Post a trade" message="Sign in, then post from the home page"><PlusIcon /></ToastButton>
       <a href="#" onClick={(e) => { e.preventDefault(); toast("Alerts need an account, coming next"); }} aria-label="Alerts"><BellIcon /></a>
       <Link className={path === "/learn" ? "on" : ""} href={address ? `/u/${address}` : "/learn"} aria-label={address ? "Your player card" : "How to play"}><TradeBoxIcon /></Link>
     </nav>
