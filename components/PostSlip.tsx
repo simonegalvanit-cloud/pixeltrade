@@ -46,17 +46,17 @@ export default function PostSlip({ post, player, pos, market }: { post: Post; pl
   return (
     <PostLink href={`/p/${post.id}`} className="match click">
       <div className="mh">
-        <Link href={`/u/${player.address}`} aria-label={player.name}><Avatar seed={player.address} size={40} label={player.name} /></Link>
+        <Link href={`/u/${player.handle}`} aria-label={player.name}><Avatar seed={player.address} size={40} label={player.name} /></Link>
         <PlayerLine player={player} sub={<span>{ago(new Date(post.created_at).getTime())} ago</span>} />
       </div>
       <div className="ctx">Called a shot{post.coin ? ` · ${post.coin}` : ""}</div>
       <PostBody post={post} pos={pos} market={market} />
-      <div className="vfoot"><span>✓ signed by wallet</span><b>{player.address.slice(0, 6)}…{player.address.slice(-4)}</b></div>
+      <div className="vfoot"><span>✓ position verified onchain</span><b>@{player.handle}</b></div>
       <div className="acts">
         <GG target={`post:${post.id}`} />
         <Share path={`/p/${post.id}`} />
         <span className="sp" />
-        <Tail wallet={player.address} small />
+        <Tail wallet={player.address} handle={player.handle} small />
       </div>
     </PostLink>
   );

@@ -1,34 +1,75 @@
 "use client";
 
+import { getAccessToken, usePrivy } from "@privy-io/react-auth";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useSyncExternalStore } from "react";
-import { toHex } from "viem";
-import { connectWallet, getProvider, useWallet } from "./Wallet";
 
-// Who is signed in. "Signed in" means you proved you own the wallet by signing
-// a free message (it can't move funds and costs no gas). The proof lives in a
-// secure cookie for 30 days.
+// Who you are on perpy.
+// - Privy says whether you're logged in (email / Google / Apple).
+// - Our server says which perpy member that is (@handle, name, wallet).
+// Right after signing up you have no member profile yet, so we send you to /welcome.
 
-type S = { address: string | null; enabled: boolean; loaded: boolean };
-let state: S = { address: null, enabled: false, loaded: false };
+export type Member = { id: string; handle: string; name: string; wallet: string; bio: string };
+type S = { member: Member | null; needsProfile: boolean; enabled: boolean; loaded: boolean; authenticated: boolean; ready: boolean };
+let state: S = { member: null, needsProfile: false, enabled: true, loaded: false, authenticated: false, ready: false };
+const SERVER: S = state;
 const listeners = new Set<() => void>();
-const SERVER: S = { address: null, enabled: false, loaded: false };
-let loading = false;
+let loginFn: (() => void) | null = null;
+let logoutFn: (() => Promise<void>) | null = null;
 
 function set(next: Partial<S>) {
   state = { ...state, ...next };
   listeners.forEach((l) => l());
 }
 
-export async function refreshSession() {
-  if (loading) return;
-  loading = true;
+// fetch() that also sends your Privy login token, so the server knows it's you.
+export async function authFetch(url: string, init: RequestInit = {}) {
+  const token = await getAccessToken().catch(() => null);
+  const headers = new Headers(init.headers);
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  return fetch(url, { ...init, headers, cache: "no-store" });
+}
+
+export async function refreshMe() {
   try {
-    const r = await fetch("/api/auth/me", { cache: "no-store" });
+    const r = await authFetch("/api/me");
     const d = await r.json();
-    set({ address: d.address ?? null, enabled: !!d.enabled, loaded: true });
+    set({ member: d.member ?? null, needsProfile: !!d.needsProfile, enabled: d.enabled !== false, loaded: true });
   } catch {
     set({ loaded: true });
-  } finally { loading = false; }
+  }
+  window.dispatchEvent(new Event("perpy:session"));
+}
+
+// Opens the Privy sign-up / login popup.
+export function signIn() {
+  if (loginFn) loginFn();
+}
+
+export async function signOut() {
+  await logoutFn?.();
+  set({ member: null, needsProfile: false });
+  window.dispatchEvent(new Event("perpy:session"));
+}
+
+// Mounted once (in Providers): keeps our state in step with Privy.
+export function MeSync() {
+  const { ready, authenticated, login, logout } = usePrivy();
+  const router = useRouter();
+  const path = usePathname();
+  loginFn = login;
+  logoutFn = logout;
+  useEffect(() => {
+    set({ ready, authenticated });
+    if (!ready) return;
+    if (authenticated) refreshMe();
+    else set({ member: null, needsProfile: false, loaded: true });
+  }, [ready, authenticated]);
+  // New member without a profile yet: pick your @handle first.
+  useEffect(() => {
+    if (state.loaded && authenticated && state.needsProfile && path !== "/welcome") router.push("/welcome");
+  });
+  return null;
 }
 
 export function useSession() {
@@ -37,41 +78,5 @@ export function useSession() {
     () => state,
     () => SERVER,
   );
-  useEffect(() => { if (!state.loaded) refreshSession(); }, []);
-  return s;
-}
-
-// Connect the wallet if needed, then sign the sign-in message.
-export async function signIn(): Promise<string> {
-  const address = await connectWallet();
-  const provider = getProvider();
-  if (!address || !provider) throw new Error("No wallet found. Install MetaMask or Rabby.");
-  const a = address.toLowerCase();
-  const r = await fetch(`/api/auth/nonce?address=${a}`, { cache: "no-store" });
-  const n = await r.json();
-  if (!r.ok) throw new Error(n.error ?? "Couldn't start sign-in.");
-  const signature = (await provider.request({ method: "personal_sign", params: [toHex(n.message), a] })) as string;
-  const v = await fetch("/api/auth/verify", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ address: a, signature, issuedAt: n.issuedAt }),
-  });
-  const d = await v.json();
-  if (!v.ok) throw new Error(d.error ?? "Sign-in failed.");
-  set({ address: d.address, enabled: true, loaded: true });
-  window.dispatchEvent(new Event("perpy:session"));
-  return d.address;
-}
-
-export async function signOut() {
-  await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
-  set({ address: null });
-  window.dispatchEvent(new Event("perpy:session"));
-}
-
-// True when the connected wallet is the signed-in one.
-export function useMe() {
-  const s = useSession();
-  const { address } = useWallet();
-  return { ...s, wallet: address, signedIn: !!s.address };
+  return { ...s, address: s.member?.wallet ?? null };
 }

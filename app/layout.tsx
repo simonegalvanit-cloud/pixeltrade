@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Press_Start_2P, Silkscreen } from "next/font/google";
 import { Dock, Header } from "@/components/Header";
 import { MarketProvider } from "@/components/Market";
+import Providers from "@/components/Providers";
 import Tape from "@/components/Tape";
 import { ToastProvider } from "@/components/Toast";
 import { CORE, fetchSnapshot, type Snapshot } from "@/lib/hyperliquid";
@@ -16,7 +17,7 @@ const pixel = Press_Start_2P({ subsets: ["latin"], weight: "400", variable: "--f
 const silk = Silkscreen({ subsets: ["latin"], weight: ["400", "700"], variable: "--font-silk" });
 
 export const metadata: Metadata = {
-  title: "perpy · real Hyperliquid traders, live",
+  title: "perpy · trade perps in public",
   description: "Verified perp trades from real wallets. Live from Hyperliquid.",
 };
 
@@ -40,6 +41,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="en" className={`${geist.variable} ${mono.variable} ${pixel.variable} ${silk.variable}`}>
       <body>
+        <Providers>
         <MarketProvider initial={snapshot}>
           <ToastProvider>
             <Tape />
@@ -48,6 +50,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <Dock />
           </ToastProvider>
         </MarketProvider>
+        </Providers>
       </body>
     </html>
   );

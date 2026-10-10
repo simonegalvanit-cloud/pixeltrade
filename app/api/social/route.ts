@@ -1,6 +1,6 @@
 import { fail, json } from "@/lib/api";
 import { ADDR, TARGET, db } from "@/lib/db";
-import { currentUser } from "@/lib/session";
+import { currentMember } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 // ?targets=a,b,c&wallets=0x..,0x..&profile=0x..
 export async function GET(req: Request) {
   const d = db();
-  const me = await currentUser();
+  const me = (await currentMember(req))?.wallet ?? null;
   const q = new URL(req.url).searchParams;
   const targets = (q.get("targets") ?? "").split(",").filter((t) => TARGET.test(t)).slice(0, 100);
   const wallets = (q.get("wallets") ?? "").toLowerCase().split(",").filter((w) => ADDR.test(w)).slice(0, 100);

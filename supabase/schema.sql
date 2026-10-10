@@ -5,6 +5,18 @@
 -- Security is switched on with no rules, which blocks everyone else, including
 -- anyone holding the public "publishable" key.
 
+-- Members: everyone with a perpy account. id is their Privy user id,
+-- wallet is the wallet Privy created for them (where their money and trades live).
+create table if not exists members (
+  id text primary key check (id like 'did:privy:%'),
+  handle text not null unique check (handle ~ '^[a-z0-9_]{3,15}$'),
+  name text not null check (char_length(name) between 1 and 30),
+  wallet text not null unique check (wallet ~ '^0x[0-9a-f]{40}$'),
+  bio text not null default '' check (char_length(bio) <= 160),
+  created_at timestamptz not null default now()
+);
+create index if not exists members_created_idx on members (created_at desc);
+
 -- Posts: a trader's call, optionally with one of their open positions attached.
 create table if not exists posts (
   id uuid primary key default gen_random_uuid(),
@@ -49,6 +61,7 @@ create table if not exists comments (
 );
 create index if not exists comments_target_idx on comments (target, created_at);
 
+alter table members enable row level security;
 alter table posts enable row level security;
 alter table follows enable row level security;
 alter table ggs enable row level security;

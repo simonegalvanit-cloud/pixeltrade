@@ -1,7 +1,10 @@
 # perpy
 
-Social trading app. Traders connect a wallet; their Hyperliquid perp trades
-become public, verified posts. Others follow them, comment, and get alerts.
+SocialFi trading app. You sign up with email, Google or Apple (Privy), pick an
+@handle, and Privy creates your own wallet (non-custodial: perpy never holds
+keys). You fund it, trade real Hyperliquid perps inside perpy, and your trades
+become public, verified matches. MEMBERS ONLY: the Pit, feed, hi-scores and
+profiles only show perpy members, never the wider Hyperliquid world.
 
 ## Stack
 Next.js (App Router, TypeScript), Supabase (later), Vercel.
@@ -22,37 +25,40 @@ Next.js (App Router, TypeScript), Supabase (later), Vercel.
 - Commit to Git after each working step.
 
 ## Project layout
-- app/: `/` the Pit + real matches, `/u/[address]` player card for any wallet,
-  `/m/[address]/[coin]` one live position, `/scores` real leaderboard,
-  `/learn` animated "how to play" walkthrough (components/TradeDemo).
-- lib/hyperliquid.ts: every Hyperliquid call (prices, candles, leaderboard,
-  clearinghouseState, frontendOpenOrders, userFills, portfolio). Public, no key.
-- lib/trading.ts: turns wallet data into players, positions (with TP/SL),
-  closed trades, win rate, streaks, levels (from volume) and classes.
-- lib/data.ts: server-only page loaders with short in-memory caching
-  (Hyperliquid rate-limits per IP). Leaderboard is ~50 MB, cached 10 min.
-- lib/positions.ts: live PnL/ROE/chart for a position from streaming prices.
-- components/Market.tsx: live store (websocket allMids + candles, reconnect,
-  polling backup). useMarket() for prices, useCoin(coin) loads candles.
-- components/Wallet.tsx: connect a browser wallet (EIP-6963), wallet search.
-- Accounts: lib/session.ts (sign-in message, HMAC-signed cookies), app/api/auth/*
-  (nonce → wallet signs → verify with viem → session). components/Session.tsx.
-- Database: supabase/schema.sql (posts, follows, ggs, comments; RLS on, no
-  policies: only the server's secret key can read/write). lib/db.ts.
-  app/api/{posts,follow,gg,comments,social}. components/Social.tsx (GG, Tail,
-  Chat, Share), Composer.tsx, PostSlip.tsx, Feed.tsx, /p/[id] post page.
-- Env vars (Vercel + .env.local, see .env.example): SUPABASE_URL,
-  SUPABASE_SECRET_KEY, SESSION_SECRET. Without them the social parts switch off.
-- components/: TradeCard (OpenCard / ClosedCard), Slip (feed card), Pit, Side,
-  Tape, Header + Dock, ScoreTable, PlayerLive, Avatar (sprite from address), Coin.
+- app/: `/` the Pit + feed (members only), `/u/[handle]` player card,
+  `/m/[handle]/[coin]` one live position, `/p/[id]` a post, `/scores` hi-scores
+  of members, `/welcome` pick @handle after sign-up, `/wallet` address,
+  balances and deposit to Hyperliquid, `/learn` animated walkthrough.
+- Login: components/Providers.tsx (PrivyProvider: email/google/apple, embedded
+  ETH wallet created on login, Arbitrum). components/Session.tsx (useSession,
+  authFetch sends the Privy token, MeSync sends new users to /welcome).
+  lib/auth.ts verifies Privy tokens with Privy's public JWKS (no secret) and
+  asks Privy's API (with PRIVY_APP_SECRET) which wallet belongs to a user.
+- Database: supabase/schema.sql: members (privy id, handle, name, wallet, bio),
+  posts, follows, ggs, comments. RLS on with no policies: only the server's
+  secret key can read/write. lib/db.ts. Posts/follows/ggs/comments are keyed
+  by the member's wallet address.
+- lib/data.ts: members-only loaders (listMembers → each wallet's positions,
+  fills and portfolio from Hyperliquid), short in-memory caching.
+- lib/hyperliquid.ts: Hyperliquid info API + websocket constants.
+- lib/trading.ts: players (member + portfolio stats), positions with TP/SL,
+  closed trades, win rate, streaks, levels, classes.
+- lib/arbitrum.ts + components/WalletPanel.tsx: deposits = USDC transfer to
+  Hyperliquid's Bridge2 on Arbitrum (min 5 USDC, smaller is LOST). Bridge
+  verified active on-chain 2026-10-10 but docs call it legacy: move to CCTP.
+- components/Market.tsx: live prices (websocket, reconnect, polling backup).
+- components/: TradeCard, Slip, PostSlip, Feed, Pit, Side, Tape, Header,
+  Account (badge, welcome form), Search (find @handle), Social (GG, Tail,
+  Chat, Share), Composer, ScoreTable, PlayerLive, Avatar, Coin, TradeDemo.
+- Env vars (see .env.example): PRIVY_APP_SECRET, SUPABASE_URL,
+  SUPABASE_SECRET_KEY (NEXT_PUBLIC_PRIVY_APP_ID optional, built in).
+- .npmrc legacy-peer-deps=true (Privy's optional smart-wallet peers conflict).
 - app/globals.css: all styles; color tokens at the top.
 
 ## Status
-- Neon arcade design. Deployed on Vercel from the repo root.
-- REAL DATA: the Pit, feed, player cards, match pages and hi-scores all come
-  from real Hyperliquid wallets. Prices stream live. Bots filtered out.
-- Wallet connect: P1 = your wallet, "Your book" shows your live positions.
-- Accounts built: sign in with wallet, post calls (with a real position
-  attached, verified on Hyperliquid), Tail (follow), GG, chat, Tailing feed.
-- Not yet: alerts (push/Telegram/email when someone you tail trades),
-  smart-contract wallets for sign-in (only regular wallets for now).
+- Stage 1 done: sign-up (Privy), @handle profiles, members-only Pit/feed/
+  scores/profiles, wallet page with deposit, posts/GG/Tail/chat.
+- Stage 2 next: trading inside perpy. Plan: user's Privy wallet signs a
+  one-time approveAgent (user-signed action); a browser-generated agent key
+  signs orders (L1 actions, chainId 1337) and can't withdraw.
+- Stage 3: withdrawals, card on-ramp, alerts, region blocking.

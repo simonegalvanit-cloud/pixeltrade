@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { signIn, useSession } from "./Session";
+import { authFetch, signIn, useSession } from "./Session";
 import { useToast } from "./Toast";
-import { shortAddr } from "@/lib/hyperliquid";
 import Avatar from "./Avatar";
 import Link from "next/link";
 
@@ -27,7 +26,7 @@ function flush() {
   if (!targets.length && !wallets.length) return;
   for (let i = 0; i < Math.max(targets.length, wallets.length); i += 100) {
     const t = targets.slice(i, i + 100), w = wallets.slice(i, i + 100);
-    fetch(`/api/social?targets=${encodeURIComponent(t.join(","))}&wallets=${w.join(",")}`, { cache: "no-store" })
+    authFetch(`/api/social?targets=${encodeURIComponent(t.join(","))}&wallets=${w.join(",")}`)
       .then((r) => r.json())
       .then((d) => {
         store.enabled = !!d.enabled;
@@ -61,20 +60,23 @@ function useStore() {
 }
 
 async function send(path: string, payload: object) {
-  const r = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+  const r = await authFetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
   const d = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(d.error ?? "Something went wrong.");
   return d;
 }
 
-// Make sure the user is signed in before an action; offers to sign in.
+// Make sure you're a signed-in member before an action. If not, opens sign-up
+// (or sends a brand-new member to pick their @handle first).
 function useGate() {
-  const { address, enabled } = useSession();
+  const { member, enabled, authenticated, needsProfile } = useSession();
   const toast = useToast();
   return async () => {
-    if (address) return true;
-    if (!enabled && store.enabled === false) { toast("Accounts aren't switched on yet"); return false; }
-    try { await signIn(); return true; } catch (e) { toast((e as Error).message.slice(0, 60)); return false; }
+    if (member) return true;
+    if (!enabled) { toast("Accounts aren't switched on yet"); return false; }
+    if (authenticated && needsProfile) { location.href = "/welcome"; return false; }
+    signIn();
+    return false;
   };
 }
 
@@ -108,7 +110,7 @@ export function GG({ target }: { target: string }) {
 
 // Tail (follow) button. Tailing someone means their trades and posts show up in
 // your "Tailing" feed (and, later, alerts).
-export function Tail({ wallet, small }: { wallet: string; small?: boolean }) {
+export function Tail({ wallet, small, handle }: { wallet: string; small?: boolean; handle?: string }) {
   useStore();
   const gate = useGate();
   const toast = useToast();
@@ -125,7 +127,7 @@ export function Tail({ wallet, small }: { wallet: string; small?: boolean }) {
         const next = !store.tailing.has(w);
         if (next) store.tailing.add(w); else store.tailing.delete(w);
         bump();
-        try { await send("/api/follow", { target: w, on: next }); toast(next ? `Tailing ${shortAddr(w)}` : "Stopped tailing"); }
+        try { await send("/api/follow", { target: w, on: next }); toast(next ? `Tailing ${handle ? "@" + handle : "them"}` : "Stopped tailing"); }
         catch (err) { if (next) store.tailing.delete(w); else store.tailing.add(w); bump(); toast((err as Error).message); }
       }}>
       {on ? "✓ Tailing" : "+ Tail"}
@@ -138,13 +140,13 @@ export function TailCounts({ wallet }: { wallet: string }) {
   const [c, setC] = useState<{ followers: number; following: number } | null>(null);
   useStore();
   useEffect(() => {
-    fetch(`/api/social?profile=${wallet.toLowerCase()}`, { cache: "no-store" }).then((r) => r.json()).then((d) => setC(d.counts)).catch(() => {});
+    authFetch(`/api/social?profile=${wallet.toLowerCase()}`).then((r) => r.json()).then((d) => setC(d.counts)).catch(() => {});
   }, [wallet, version]);
   if (!c) return null;
   return <><span><b>{c.followers}</b> tailing them</span><span><b>{c.following}</b> they tail</span></>;
 }
 
-type Msg = { id: string; author: string; body: string; created_at: string };
+type Msg = { id: string; author: string; handle: string | null; name: string | null; body: string; created_at: string };
 
 // Chat under a post, position or trade.
 export function Chat({ target }: { target: string }) {
@@ -157,7 +159,7 @@ export function Chat({ target }: { target: string }) {
   const { address } = useSession();
   useEffect(() => {
     let on = true;
-    const load = () => fetch(`/api/comments?target=${encodeURIComponent(target)}`, { cache: "no-store" })
+    const load = () => authFetch(`/api/comments?target=${encodeURIComponent(target)}`)
       .then((r) => r.json()).then((d) => { if (on) { setMsgs(d.comments ?? []); setEnabled(d.enabled !== false); } }).catch(() => on && setMsgs([]));
     load();
     const t = setInterval(load, 15000); // pick up new messages every 15s
@@ -183,9 +185,9 @@ export function Chat({ target }: { target: string }) {
       {enabled && msgs?.length === 0 && <p className="muted" style={{ padding: "8px 12px", margin: 0 }}>No chat yet. Say GG.</p>}
       {msgs?.map((m) => (
         <article className="cmsg" key={m.id}>
-          <Link href={`/u/${m.author}`}><Avatar seed={m.author} size={30} label={shortAddr(m.author)} /></Link>
+          <Link href={m.handle ? `/u/${m.handle}` : "#"}><Avatar seed={m.author} size={30} label={m.handle ?? "member"} /></Link>
           <div className="c">
-            <div className="h">{shortAddr(m.author)}{m.author === address && <span className="tag lv">you</span>}<span>{new Date(m.created_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span></div>
+            <div className="h">{m.name ?? "member"} <span>@{m.handle ?? "?"}</span>{m.author === address && <span className="tag lv">you</span>}<span>{new Date(m.created_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span></div>
             <p>{m.body}</p>
           </div>
         </article>
@@ -226,7 +228,7 @@ async function loadTailing(me: string) {
   if (tailLoaded === me) return;
   tailLoaded = me;
   try {
-    const d = await (await fetch("/api/social/tailing", { cache: "no-store" })).json();
+    const d = await (await authFetch("/api/social/tailing")).json();
     tailSet = new Set(d.tailing ?? []);
     tailListeners.forEach((l) => l());
   } catch {}

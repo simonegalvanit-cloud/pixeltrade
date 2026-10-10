@@ -2,15 +2,17 @@
 // closed trades ("matches"), win rate, streaks and the arcade stats.
 // Everything here is calculated from real onchain activity.
 
-import { shortAddr, type RawFill, type RawOrder, type RawState } from "./hyperliquid";
+import type { RawFill, RawOrder, RawPortfolio, RawState } from "./hyperliquid";
 
 export type Win = "day" | "week" | "month" | "allTime";
 export type Perf = { pnl: number; roi: number; vlm: number };
 
+// A perpy member as a player: who they are plus their real trading stats.
 export type Player = {
-  address: string;
-  name: string; // Hyperliquid display name, or the short address
-  named: boolean;
+  address: string; // their wallet
+  handle: string; // @handle
+  name: string; // display name
+  named: boolean; // kept for the verified tick (always true for members)
   accountValue: number;
   perf: Record<Win, Perf>;
 };
@@ -46,18 +48,24 @@ export type ClosedTrade = {
 
 // ---------- players ----------
 
-type LbRow = { ethAddress: string; accountValue: string; displayName: string | null; windowPerformances: [Win, { pnl: string; roi: string; vlm: string }][] };
+const WIN_KEY: Record<Win, string> = { day: "perpDay", week: "perpWeek", month: "perpMonth", allTime: "perpAllTime" };
 
-export function playerFromRow(r: LbRow): Player {
-  const perf = {} as Record<Win, Perf>;
-  for (const [w, p] of r.windowPerformances) perf[w] = { pnl: +p.pnl, roi: +p.roi, vlm: +p.vlm };
-  const name = r.displayName?.trim();
-  return { address: r.ethAddress.toLowerCase(), name: name || shortAddr(r.ethAddress), named: !!name, accountValue: +r.accountValue, perf };
+// Stats per time window from Hyperliquid's portfolio history for the wallet.
+export function perfFromPortfolio(pf: RawPortfolio): Record<Win, Perf> {
+  const out = {} as Record<Win, Perf>;
+  for (const w of Object.keys(WIN_KEY) as Win[]) {
+    const d = pf.find(([k]) => k === WIN_KEY[w])?.[1];
+    const pnl = d?.pnlHistory ?? [];
+    const av = d?.accountValueHistory ?? [];
+    const gain = pnl.length ? +pnl[pnl.length - 1][1] - (w === "allTime" ? 0 : +pnl[0][1]) : 0;
+    const start = av.length ? Math.max(...av.slice(0, 1).map((x) => +x[1]), 0) : 0;
+    out[w] = { pnl: gain, roi: start > 0 ? gain / start : 0, vlm: d ? +d.vlm : 0 };
+  }
+  return out;
 }
 
-export function emptyPlayer(address: string, accountValue = 0): Player {
-  const z = { pnl: 0, roi: 0, vlm: 0 };
-  return { address: address.toLowerCase(), name: shortAddr(address), named: false, accountValue, perf: { day: z, week: z, month: z, allTime: z } };
+export function playerFrom(m: { wallet: string; handle: string; name: string }, pf: RawPortfolio, accountValue: number): Player {
+  return { address: m.wallet, handle: m.handle, name: m.name, named: true, accountValue, perf: perfFromPortfolio(pf) };
 }
 
 // Arcade level from all-time trading volume: $10K ≈ LV.12, $1M ≈ LV.36, $1B ≈ LV.72.

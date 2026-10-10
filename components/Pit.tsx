@@ -6,15 +6,15 @@ import { livePos } from "@/lib/positions";
 import type { Player, Position } from "@/lib/trading";
 import Avatar from "./Avatar";
 import { useMarket } from "./Market";
-import { useWallet } from "./Wallet";
+import { useSession } from "./Session";
 
 // The Pit: a heatmap of top traders' biggest open positions, updated live.
 // Bigger tile = bigger position. Brighter green or pink = bigger gain or loss
 // (full brightness at ±40% return on margin).
 export default function Pit({ items }: { items: { player: Player; pos: Position }[] }) {
   const { snap } = useMarket();
-  const { address } = useWallet();
-  if (!items.length) return <p className="muted mono" style={{ margin: 0 }}>Nobody in the Pit right now. Check back in a minute.</p>;
+  const { address } = useSession();
+  if (!items.length) return <p className="muted mono" style={{ margin: 0 }}>The Pit is empty: no perpy player has an open position right now. Deposit, open a trade, and your tile lights up here.</p>;
   const sizes: (1 | 2 | 3 | 4)[] = [4, 3, 1, 1, 2, 2, 1, 1];
   return (
     <div className="pit" aria-label="Open positions right now">
@@ -27,13 +27,13 @@ export default function Pit({ items }: { items: { player: Player; pos: Position 
         return (
           <Link
             key={player.address}
-            href={`/m/${player.address}/${encodeURIComponent(pos.coin)}`}
+            href={`/m/${player.handle}/${encodeURIComponent(pos.coin)}`}
             className={`cell ${dir} s${tile}${player.address === address ? " you" : ""}`}
             style={{ "--h": heat.toFixed(3) } as React.CSSProperties}
             aria-label={`${player.name}: ${pos.coin} ${side} ${pos.lev}x, ${usdShort(l.pnl)}`}
           >
             <div>
-              <div className="who"><Avatar seed={player.address} size={tile >= 3 ? 28 : 22} /><span>{player.name}</span></div>
+              <div className="who"><Avatar seed={player.address} size={tile >= 3 ? 28 : 22} /><span>@{player.handle}</span></div>
               {tile > 1 && <div className="pos">{pos.coin} {side} ×{pos.lev} · {moneyShort(pos.posValue)}</div>}
             </div>
             <div>
