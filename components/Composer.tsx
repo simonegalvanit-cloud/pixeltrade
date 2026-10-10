@@ -6,13 +6,13 @@ import { usdBig } from "@/lib/format";
 import { livePos } from "@/lib/positions";
 import Avatar from "./Avatar";
 import { useMarket } from "./Market";
-import { signIn, useSession } from "./Session";
+import { authFetch, signIn, useSession } from "./Session";
 import { useBook } from "./Side";
 import { useToast } from "./Toast";
 
 // Write a post ("call your shot") and attach one of your real open positions.
 export default function Composer() {
-  const { address, enabled, loaded } = useSession();
+  const { address, enabled, ready, member, authenticated } = useSession();
   const book = useBook(address);
   const { snap } = useMarket();
   const toast = useToast();
@@ -21,13 +21,14 @@ export default function Composer() {
   const [coin, setCoin] = useState<string>("");
   const [busy, setBusy] = useState(false);
 
-  if (!loaded || !enabled) return null;
+  if (!ready || !enabled) return null;
+  if (authenticated && !member) return null;
 
   if (!address) {
     return (
       <div className="compose">
-        <span className="muted" style={{ flex: 1 }}>Sign in with your wallet to post your calls, GG and chat.</span>
-        <button type="button" className="btn go sm" onClick={() => signIn().catch((e) => toast((e as Error).message.slice(0, 60)))}>Sign in</button>
+        <span className="muted" style={{ flex: 1 }}>Join perpy to post your calls, GG, chat and trade with friends.</span>
+        <button type="button" className="btn go sm" onClick={() => signIn()}>Sign up / Log in</button>
       </div>
     );
   }
@@ -36,7 +37,7 @@ export default function Composer() {
     if (!text.trim() || busy) return;
     setBusy(true);
     try {
-      const r = await fetch("/api/posts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ body: text, coin: coin || null }) });
+      const r = await authFetch("/api/posts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ body: text, coin: coin || null }) });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error ?? "Couldn't post.");
       setText(""); setCoin("");

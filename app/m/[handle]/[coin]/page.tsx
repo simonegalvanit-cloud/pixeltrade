@@ -7,9 +7,9 @@ import { BackIcon } from "@/components/Icons";
 import { SeedMarkets } from "@/components/Market";
 import { Flame, PlayerLine } from "@/components/Slip";
 import { ClosedCard, OpenCard } from "@/components/TradeCard";
-import { getCandles, getFills, getPlayer, getPositions } from "@/lib/data";
+import { getCandles, getFills, getMemberPlayer, getPositions } from "@/lib/data";
 import { fmtLevel, fmtPx, money, moneyShort, usd } from "@/lib/format";
-import { isAddress, shortAddr } from "@/lib/hyperliquid";
+import { shortAddr } from "@/lib/hyperliquid";
 import { ago, classOf, closedTrades, streakOf } from "@/lib/trading";
 
 // Pages are built on first visit and then refreshed in the background.
@@ -19,20 +19,21 @@ export function generateStaticParams() {
 
 export const revalidate = 30;
 
-export async function generateMetadata({ params }: { params: Promise<{ address: string; coin: string }> }) {
-  const { address, coin } = await params;
-  return { title: `${decodeURIComponent(coin)} · ${shortAddr(address)} · perpy` };
+export async function generateMetadata({ params }: { params: Promise<{ handle: string; coin: string }> }) {
+  const { handle, coin } = await params;
+  return { title: `${decodeURIComponent(coin)} · @${decodeURIComponent(handle)} · perpy` };
 }
 
 // One match: a player's position on one coin, live, with its trade log.
-export default async function MatchPage({ params }: { params: Promise<{ address: string; coin: string }> }) {
-  const { address: raw, coin: rawCoin } = await params;
-  if (!isAddress(raw)) notFound();
-  const address = raw.toLowerCase();
+export default async function MatchPage({ params }: { params: Promise<{ handle: string; coin: string }> }) {
+  const { handle, coin: rawCoin } = await params;
+  const found = await getMemberPlayer(decodeURIComponent(handle).toLowerCase());
+  if (!found) notFound();
+  const { member, player } = found;
+  const address = member.wallet;
   const coin = decodeURIComponent(rawCoin);
 
-  const [player, book, fills, market] = await Promise.all([
-    getPlayer(address),
+  const [book, fills, market] = await Promise.all([
     getPositions(address, true).catch(() => null),
     getFills(address, 30).catch(() => []),
     getCandles(coin),
@@ -52,16 +53,16 @@ export default async function MatchPage({ params }: { params: Promise<{ address:
       <div className="postpg">
         <section className="thesis">
           <div className="author">
-            <Link href={`/u/${address}`}><Avatar seed={address} size={52} label={player.name} /></Link>
+            <Link href={`/u/${member.handle}`}><Avatar seed={address} size={52} label={player.name} /></Link>
             <PlayerLine player={player} sub={<><span className="tag cl">{klass}</span><Flame n={streakOf(trades)} /></>} />
-            <Tail wallet={address} />
+            <Tail wallet={address} handle={member.handle} />
           </div>
 
           {pos ? (
             <>
               <h1>{side} {coin} <em>×{pos.lev}</em></h1>
               <p>
-                {player.name} is {side?.toLowerCase()} {Math.abs(pos.szi).toLocaleString("en-US", { maximumFractionDigits: 4 })} {coin} ({moneyShort(pos.posValue)})
+                @{member.handle} is {side?.toLowerCase()} {Math.abs(pos.szi).toLocaleString("en-US", { maximumFractionDigits: 4 })} {coin} ({moneyShort(pos.posValue)})
                 from an average entry of {fmtPx(pos.entryPx)}, using {moneyShort(pos.marginUsed)} of margin ({pos.levType}).
               </p>
               <p>
@@ -73,7 +74,7 @@ export default async function MatchPage({ params }: { params: Promise<{ address:
           ) : (
             <>
               <h1>{coin} <em>match over</em></h1>
-              <p>{player.name} has no open {coin} position right now.{lastClosed ? ` Their last ${coin} trade closed ${ago(lastClosed.time)} ago.` : ""}</p>
+              <p>@{member.handle} has no open {coin} position right now.{lastClosed ? ` Their last ${coin} trade closed ${ago(lastClosed.time)} ago.` : ""}</p>
             </>
           )}
           <div className="thesis stats">
@@ -114,7 +115,7 @@ export default async function MatchPage({ params }: { params: Promise<{ address:
             <div className="acts">
               <GG target={`pos:${address}:${coin}`} />
               <span className="sp" />
-              <Tail wallet={address} small />
+              <Tail wallet={address} handle={member.handle} small />
             </div>
           </div>
         </div>

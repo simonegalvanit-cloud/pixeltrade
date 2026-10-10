@@ -1,11 +1,11 @@
 import { body, fail, json } from "@/lib/api";
 import { TARGET, db } from "@/lib/db";
-import { currentUser } from "@/lib/session";
+import { currentMember } from "@/lib/auth";
 
 // GG (like) or un-GG a post, position or trade.
 export async function POST(req: Request) {
   const d = db();
-  const me = await currentUser();
+  const me = (await currentMember(req))?.wallet ?? null;
   if (!d || !me) return fail("Sign in first.", 401);
   const b = await body<{ target: string; on: boolean }>(req);
   const target = b.target ?? "";

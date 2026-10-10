@@ -4,7 +4,6 @@
 
 export const API = "https://api.hyperliquid.xyz/info";
 export const WS = "wss://api.hyperliquid.xyz/ws";
-export const LEADERBOARD = "https://stats-data.hyperliquid.xyz/Mainnet/leaderboard";
 
 export const STEP = 5 * 60 * 1000; // one candle = 5 minutes
 export const WINDOW = 72; // candles shown on a chart = 6 hours

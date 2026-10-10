@@ -3,13 +3,14 @@ import { body, fail, json } from "@/lib/api";
 import { db } from "@/lib/db";
 import { fetchState } from "@/lib/hyperliquid";
 import { parsePositions } from "@/lib/trading";
-import { currentUser } from "@/lib/session";
+import { currentMember } from "@/lib/auth";
 
 // Post a call. If a coin is attached, we read your real position from
 // Hyperliquid at that moment, so nobody can attach a trade they didn't make.
 export async function POST(req: Request) {
   const d = db();
-  const me = await currentUser();
+  const member = await currentMember(req);
+  const me = member?.wallet ?? null;
   if (!d || !me) return fail("Sign in first.", 401);
   const b = await body<{ body: string; coin: string | null }>(req);
   const text = (b.body ?? "").trim();
@@ -28,19 +29,20 @@ export async function POST(req: Request) {
   const { data, error } = await d.from("posts").insert({ author: me, body: text, ...attach }).select("*").single();
   if (error) return fail("Couldn't save the post.", 500);
   revalidatePath("/");
-  revalidatePath(`/u/${me}`);
+  revalidatePath(`/u/${member!.handle}`);
   return json({ post: data });
 }
 
 export async function DELETE(req: Request) {
   const d = db();
-  const me = await currentUser();
+  const member = await currentMember(req);
+  const me = member?.wallet ?? null;
   if (!d || !me) return fail("Sign in first.", 401);
   const id = new URL(req.url).searchParams.get("id") ?? "";
   if (!/^[0-9a-f-]{36}$/.test(id)) return fail("Bad id");
   const { error } = await d.from("posts").delete().eq("id", id).eq("author", me);
   if (error) return fail("Couldn't delete.", 500);
   revalidatePath("/");
-  revalidatePath(`/u/${me}`);
+  revalidatePath(`/u/${member!.handle}`);
   return json({ ok: true });
 }

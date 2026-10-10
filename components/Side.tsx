@@ -8,7 +8,7 @@ import { dayChange, livePos } from "@/lib/positions";
 import { parsePositions, type Player, type Position } from "@/lib/trading";
 import Coin from "./Coin";
 import { useMarket } from "./Market";
-import { ConnectButton, useWallet } from "./Wallet";
+import { signIn, useSession } from "./Session";
 
 // Your connected wallet's open positions, refreshed every 30 seconds.
 export function useBook(address: string | null) {
@@ -34,7 +34,7 @@ const WATCH = ["BTC", "ETH", "SOL", "HYPE", "XRP", "DOGE", "SUI", "BNB", "AVAX",
 // Desktop side column on the home page.
 export default function Side({ ranked }: { ranked: Player[] }) {
   const { snap } = useMarket();
-  const { address } = useWallet();
+  const { address, member } = useSession();
   const book = useBook(address);
   const movers = WATCH.filter((c) => snap?.mids[c])
     .map((c) => ({ c, ch: dayChange(c, snap) }))
@@ -44,20 +44,22 @@ export default function Side({ ranked }: { ranked: Player[] }) {
   return (
     <aside className="side">
       <div className="box">
-        <h3>Your book <small>{address ? `${address.slice(0, 6)}…${address.slice(-4)}` : "P1"}</small></h3>
+        <h3>Your book <small>{member ? `@${member.handle}` : "P1"}</small></h3>
         {!address && (
           <>
-            <p className="muted" style={{ margin: "0 0 10px", fontSize: 13.5 }}>Connect your wallet to see your live Hyperliquid positions here.</p>
-            <ConnectButton />
+            <p className="muted" style={{ margin: "0 0 10px", fontSize: 13.5 }}>Join perpy to trade and see your live positions here.</p>
+            <button type="button" className="btn go sm" onClick={() => signIn()}>Sign up / Log in</button>
           </>
         )}
         {address && !book && <span className="skel" style={{ width: "100%" }} />}
-        {address && book && book.positions.length === 0 && <p className="muted mono" style={{ margin: 0, fontSize: 12.5 }}>No open positions. Account: ${Math.round(book.accountValue).toLocaleString("en-US")}</p>}
+        {address && book && book.positions.length === 0 && (
+          <p className="muted mono" style={{ margin: 0, fontSize: 12.5 }}>No open positions. Account: ${Math.round(book.accountValue).toLocaleString("en-US")}{book.accountValue < 5 && <> · <Link className="cyan" href="/wallet">deposit</Link></>}</p>
+        )}
         {book?.positions.map((p) => {
           const l = livePos(p, snap);
           const dir = l.pnl >= 0 ? "up" : "down";
           return (
-            <Link className="line" key={p.coin} href={`/m/${address}/${encodeURIComponent(p.coin)}`}>
+            <Link className="line" key={p.coin} href={`/m/${member?.handle}/${encodeURIComponent(p.coin)}`}>
               <Coin coin={p.coin} />
               <div className="t"><b>{p.coin}</b><small className={p.szi > 0 ? "up" : "down"}>{p.szi > 0 ? "LONG" : "SHORT"} ×{p.lev}</small></div>
               <b className={`${dir} mono`} style={{ textAlign: "right", fontSize: 13 }}>{usd(l.pnl)}</b>
@@ -68,12 +70,13 @@ export default function Side({ ranked }: { ranked: Player[] }) {
 
       <div className="box">
         <h3>Hi-scores <small>30D PNL</small></h3>
+        {ranked.length === 0 && <p className="muted mono" style={{ margin: 0, fontSize: 12.5 }}>No scores yet. Be player one.</p>}
         <table className="hs">
           <tbody>
             {ranked.slice(0, 5).map((p, i) => (
               <tr key={p.address}>
                 <td className="rk">{i + 1}.</td>
-                <td className="nm"><Link href={`/u/${p.address}`}>{p.name}</Link></td>
+                <td className="nm"><Link href={`/u/${p.handle}`}>@{p.handle}</Link></td>
                 <td className="v">{usdBig(p.perf.month.pnl)}</td>
               </tr>
             ))}

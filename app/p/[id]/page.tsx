@@ -7,7 +7,7 @@ import { DeletePost } from "@/components/DeletePost";
 import { PostBody } from "@/components/PostSlip";
 import { PlayerLine } from "@/components/Slip";
 import { Chat, GG, Share, Tail } from "@/components/Social";
-import { getCandles, getPlayer, getPositions } from "@/lib/data";
+import { getCandles, getPositions, playersByWallets } from "@/lib/data";
 import { getPost } from "@/lib/db";
 import { ago } from "@/lib/trading";
 
@@ -18,11 +18,13 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
   const { id } = await params;
   const post = await getPost(id);
   if (!post) notFound();
-  const [player, book, market] = await Promise.all([
-    getPlayer(post.author),
+  const [authors, book, market] = await Promise.all([
+    playersByWallets([post.author]),
     post.coin ? getPositions(post.author).catch(() => null) : null,
     post.coin ? getCandles(post.coin) : null,
   ]);
+  const player = authors.get(post.author);
+  if (!player) notFound();
   const pos = book?.positions.find((x) => x.coin === post.coin) ?? null;
 
   return (
@@ -32,15 +34,15 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
       <div className="postpg">
         <section className="thesis">
           <div className="author">
-            <Link href={`/u/${post.author}`}><Avatar seed={post.author} size={52} label={player.name} /></Link>
+            <Link href={`/u/${player.handle}`}><Avatar seed={post.author} size={52} label={player.name} /></Link>
             <PlayerLine player={player} sub={<span>{ago(new Date(post.created_at).getTime())} ago</span>} />
-            <Tail wallet={post.author} />
+            <Tail wallet={post.author} handle={player.handle} />
           </div>
           <p style={{ fontSize: 20, lineHeight: 1.55, whiteSpace: "pre-wrap" }}>{post.body}</p>
           <div className="thesis stats">
-            <span>Signed by <b>{post.author.slice(0, 6)}…{post.author.slice(-4)}</b></span>
+            <span>Posted by <b>@{player.handle}</b></span>
             <span>{new Date(post.created_at).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}</span>
-            <DeletePost id={post.id} author={post.author} />
+            <DeletePost id={post.id} author={post.author} handle={player.handle} />
           </div>
         </section>
         <div className="rcol">
@@ -51,7 +53,7 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
               <GG target={`post:${post.id}`} />
               <Share path={`/p/${post.id}`} />
               <span className="sp" />
-              <Tail wallet={post.author} small />
+              <Tail wallet={post.author} handle={player.handle} small />
             </div>
           </div>
         </div>

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Coin from "@/components/Coin";
 import { Tail, TailCounts } from "@/components/Social";
+import { EditProfile } from "@/components/Account";
 import PostSlip from "@/components/PostSlip";
 import { VerifiedCheck, WalletIcon } from "@/components/Icons";
 import { SeedMarkets } from "@/components/Market";
@@ -8,10 +9,10 @@ import { LiveAvatar, LiveTotal, PnlHistory } from "@/components/PlayerLive";
 import PostLink from "@/components/PostLink";
 import { Flame } from "@/components/Slip";
 import { OpenCard } from "@/components/TradeCard";
-import { getCandles, getPlayer, getPortfolio, getPositions, getTrades } from "@/lib/data";
+import { getCandles, getMemberPlayer, getPortfolio, getPositions, getTrades } from "@/lib/data";
 import { latestPosts } from "@/lib/db";
 import { money, moneyShort, pct, usd, usdBig } from "@/lib/format";
-import { isAddress, shortAddr, type MarketData } from "@/lib/hyperliquid";
+import { shortAddr, type MarketData } from "@/lib/hyperliquid";
 import { ago, classOf, dailyPnl, levelOf, streakOf, winRate, xpOf, type ClosedTrade } from "@/lib/trading";
 
 // Pages are built on first visit and then refreshed in the background.
@@ -21,9 +22,9 @@ export function generateStaticParams() {
 
 export const revalidate = 60;
 
-export async function generateMetadata({ params }: { params: Promise<{ address: string }> }) {
-  const { address } = await params;
-  return { title: `${shortAddr(address)} · perpy` };
+export async function generateMetadata({ params }: { params: Promise<{ handle: string }> }) {
+  const { handle } = await params;
+  return { title: `@${decodeURIComponent(handle)} · perpy` };
 }
 
 // 13 weeks of real trading days. Green = profitable day, pink = losing day.
@@ -62,21 +63,21 @@ function Stat({ label, value, frac, color }: { label: string; value: string; fra
   );
 }
 
-export default async function PlayerPage({ params }: { params: Promise<{ address: string }> }) {
-  const { address: raw } = await params;
-  if (!isAddress(raw)) notFound();
-  const address = raw.toLowerCase();
+export default async function PlayerPage({ params }: { params: Promise<{ handle: string }> }) {
+  const { handle } = await params;
+  const found = await getMemberPlayer(decodeURIComponent(handle).toLowerCase().replace(/^@/, ""));
+  if (!found) notFound();
+  const { member, player } = found;
+  const address = member.wallet;
 
-  const [player, book, trades, portfolio, posts] = await Promise.all([
-    getPlayer(address),
+  const [book, trades, portfolio, posts] = await Promise.all([
     getPositions(address, true).catch(() => null),
     getTrades(address, 90).catch(() => [] as ClosedTrade[]),
     getPortfolio(address),
     latestPosts(10, address),
   ]);
   const positions = book?.positions ?? [];
-  // Money can sit in spot or vaults, outside the perps account; fall back to the leaderboard's figure.
-  const accountValue = book?.accountValue || player.accountValue;
+  const accountValue = book?.accountValue ?? player.accountValue;
   const p = { ...player, accountValue: accountValue || player.accountValue };
 
   const candles = await Promise.all(positions.slice(0, 6).map((x) => getCandles(x.coin)));
@@ -105,12 +106,13 @@ export default async function PlayerPage({ params }: { params: Promise<{ address
         <LiveAvatar address={address} positions={positions} size={120} label={p.name} />
         <div style={{ minWidth: 0 }}>
           <div className="kick">Player select · class: {klass}</div>
-          <h1>{p.name}{p.named && <VerifiedCheck />}</h1>
-          <div className="hd"><span className="tag lv">LV.{lv}</span><span className="tag cl">{klass}</span><Flame n={streak} /></div>
+          <h1>{p.name}<VerifiedCheck /></h1>
+          <div className="hd"><span>@{member.handle}</span><span className="tag lv">LV.{lv}</span><span className="tag cl">{klass}</span><Flame n={streak} /></div>
+          {member.bio && <p className="bio">{member.bio}</p>}
           <div className="facts">
-            <span><WalletIcon small />{address}</span>
-            <a href={`https://app.hyperliquid.xyz/explorer/address/${address}`} rel="noopener noreferrer" target="_blank">Explorer ↗</a>
+            <a href={`https://app.hyperliquid.xyz/explorer/address/${address}`} rel="noopener noreferrer" target="_blank" title="Every trade is verifiable onchain"><WalletIcon small />{shortAddr(address)} · verified onchain ↗</a>
             <span>Account {moneyShort(accountValue)}</span>
+            <span>Joined {new Date(member.created_at).toLocaleDateString("en-US", { month: "short", year: "numeric" })}</span>
           </div>
           <div className="xp">
             <div className="lbl"><span>XP · LV.{lv}</span><span>{Math.round(xp * 100)}% to LV.{lv + 1} · {moneyShort(p.perf.allTime.vlm)} traded</span></div>
@@ -121,7 +123,8 @@ export default async function PlayerPage({ params }: { params: Promise<{ address
           <small>30-DAY SCORE</small>
           <b className={month >= 0 ? "" : "down"} style={month < 0 ? { color: "var(--down)", textShadow: "0 0 20px var(--down)" } : undefined}>{usdBig(month)}</b>
           <div className="acts2">
-            <Tail wallet={address} />
+            <Tail wallet={address} handle={member.handle} />
+            <EditProfile handle={member.handle} />
           </div>
         </div>
         <div className="ff">
@@ -132,7 +135,7 @@ export default async function PlayerPage({ params }: { params: Promise<{ address
         </div>
       </section>
 
-      {!hasAnything && <p className="empty">This wallet hasn&apos;t traded perps on Hyperliquid yet.</p>}
+      {!hasAnything && <p className="empty">@{member.handle} hasn&apos;t played a match yet. Tail them to see their first trade.</p>}
 
       <div className="rpg">
         <Stat label="WIN RATE · 90D" value={wr === null ? "—" : `${Math.round(wr * 100)}%`} frac={wr ?? 0} color="var(--up)" />
@@ -146,7 +149,7 @@ export default async function PlayerPage({ params }: { params: Promise<{ address
           <div className="sec-h"><h2><span className="bl" />LIVE MATCHES</h2><small>{positions.length} open</small></div>
           <div className="board" style={{ marginBottom: 20 }}>
             {positions.map((pos) => (
-              <PostLink key={pos.coin} href={`/m/${address}/${encodeURIComponent(pos.coin)}`} className="match click">
+              <PostLink key={pos.coin} href={`/m/${member.handle}/${encodeURIComponent(pos.coin)}`} className="match click">
                 <OpenCard pos={pos} market={markets[pos.coin]} />
               </PostLink>
             ))}
