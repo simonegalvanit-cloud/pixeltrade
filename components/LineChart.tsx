@@ -21,9 +21,13 @@ export default function LineChart({
   if (pts.length < 2) return <div style={{ height }} />;
   const W = 600;
   const h = height;
-  const entry = levels.find((l) => l.kind === "e")?.v;
+  // Zoom on recent price action. The entry is included only if it's close by;
+  // otherwise its label is pinned to the edge with an arrow, like TP and SL.
   const range = showCandles ? candles!.flatMap((k) => [k.h, k.l]) : pts;
-  const all = entry !== undefined ? [...range, entry] : range;
+  const entry = levels.find((l) => l.kind === "e")?.v;
+  const rLo = Math.min(...range), rHi = Math.max(...range), span = rHi - rLo || rHi * 0.002;
+  const near = entry !== undefined && entry > rLo - span && entry < rHi + span;
+  const all = near ? [...range, entry!] : range;
   const mn = Math.min(...all);
   const mx = Math.max(...all);
   const pad = (mx - mn) * 0.15 || mx * 0.001 || 1;

@@ -22,25 +22,27 @@ Next.js (App Router, TypeScript), Supabase (later), Vercel.
 - Commit to Git after each working step.
 
 ## Project layout
-- app/: pages. `/` Pit + matches feed, `/u/[handle]` player card,
-  `/post/[id]` match page, `/scores` hi-scores, `/learn` animated
-  "how to play" walkthrough (components/TradeDemo).
-- components/: TradeCard (a trade), Slip (a feed post), Pit (heatmap),
-  Tape (ticker), Header + Dock (nav), Side (home side column),
-  Avatar (pixel sprite from the handle), PostView, ProfileLive...
-- lib/mock.ts: fictional traders; their trades are defined by time/side/size.
-- lib/hyperliquid.ts: public Hyperliquid API (snapshot of prices + 5m candles).
-- lib/positions.ts: entry, mark, PnL, TP/SL from live prices. lib/format.ts.
-- components/Market.tsx: live store (websocket, reconnect, polling backup).
-  Use useMarket() in any client component to read live prices.
-- components/ChartMode.tsx: Line / Candles switch shared by all price charts.
-- app/globals.css: all styles; color tokens at the top, light and dark.
+- app/: `/` the Pit + real matches, `/u/[address]` player card for any wallet,
+  `/m/[address]/[coin]` one live position, `/scores` real leaderboard,
+  `/learn` animated "how to play" walkthrough (components/TradeDemo).
+- lib/hyperliquid.ts: every Hyperliquid call (prices, candles, leaderboard,
+  clearinghouseState, frontendOpenOrders, userFills, portfolio). Public, no key.
+- lib/trading.ts: turns wallet data into players, positions (with TP/SL),
+  closed trades, win rate, streaks, levels (from volume) and classes.
+- lib/data.ts: server-only page loaders with short in-memory caching
+  (Hyperliquid rate-limits per IP). Leaderboard is ~50 MB, cached 10 min.
+- lib/positions.ts: live PnL/ROE/chart for a position from streaming prices.
+- components/Market.tsx: live store (websocket allMids + candles, reconnect,
+  polling backup). useMarket() for prices, useCoin(coin) loads candles.
+- components/Wallet.tsx: connect a browser wallet (EIP-6963), wallet search.
+- components/: TradeCard (OpenCard / ClosedCard), Slip (feed card), Pit, Side,
+  Tape, Header + Dock, ScoreTable, PlayerLive, Avatar (sprite from address), Coin.
+- app/globals.css: all styles; color tokens at the top.
 
 ## Status
-Step 1 done: Next.js setup and static pages (mock data).
-Redesign done: neon arcade look (replaced X-style, then the receipts look).
-Deployed on Vercel from the repo root (Root Directory empty; vercel.json sets the framework).
-Live prices done: every chart and number comes from Hyperliquid in real time.
-Pages are rebuilt every 60s with a fresh snapshot (ISR), then the browser streams.
-Line/candles toggle and the /learn walkthrough done.
-Next: real wallets (connect a wallet, read its actual positions and fills).
+- Neon arcade design. Deployed on Vercel from the repo root.
+- REAL DATA: the Pit, feed, player cards, match pages and hi-scores all come
+  from real Hyperliquid wallets. Prices stream live. Bots filtered out.
+- Wallet connect: P1 = your wallet, "Your book" shows your live positions.
+- Not yet (needs a database + sign-in, plan: Supabase + Sign-In with Ethereum):
+  written posts/theses, follows, GG counts, chat, alerts.

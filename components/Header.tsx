@@ -2,15 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ME, PEOPLE, levelOf, positionKeyFor } from "@/lib/mock";
-import { usdShort } from "@/lib/format";
-import { livePosition } from "@/lib/positions";
+import { shortAddr } from "@/lib/hyperliquid";
 import Avatar from "./Avatar";
 import { BellIcon, HomeIcon, PlusIcon, SearchIcon, TradeBoxIcon } from "./Icons";
-import { useMarket } from "./Market";
 import { ToastButton, useToast } from "./Toast";
-
-const SOON = "Coming in a later level";
+import { ConnectButton, WalletSearch, disconnectWallet, useWallet } from "./Wallet";
 
 // A pixel coin, used in the logo.
 export const CoinIcon = ({ className = "coinx" }: { className?: string }) => (
@@ -20,14 +16,10 @@ export const CoinIcon = ({ className = "coinx" }: { className?: string }) => (
   </svg>
 );
 
-// Top bar on every page: logo, sections, and your player badge.
+// Top bar on every page: logo, sections, wallet search, and P1 (your wallet).
 export function Header() {
   const path = usePathname();
-  const toast = useToast();
-  const { snap } = useMarket();
-  const me = PEOPLE[ME];
-  const key = positionKeyFor(ME);
-  const p = key ? livePosition(key, snap) : null;
+  const { address } = useWallet();
   return (
     <header className="top">
       <div className="in">
@@ -36,18 +28,20 @@ export function Header() {
           <Link className={path === "/" ? "on" : ""} href="/">The Pit</Link>
           <Link className={path === "/scores" ? "on" : ""} href="/scores">Hi-scores</Link>
           <Link className={path === "/learn" ? "on" : ""} href="/learn">How to play</Link>
-          <a href="#" onClick={(e) => { e.preventDefault(); toast(SOON); }}>Alerts<span className="n">4</span></a>
         </nav>
         <div className="right">
-          <ToastButton className="btn go sm hide-m" message="Posting comes in a later level"><PlusIcon small />Post trade</ToastButton>
-          <Link className="p1" href={`/u/${ME}`} aria-label="Your profile">
-            <Avatar handle={ME} size={34} ring={p ? (p.pnl >= 0 ? "up" : "down") : undefined} />
-            <span className="t">
-              <small>P1 · LV.{levelOf(me)}</small>
-              <b>{me.name.split(" ")[0]}</b>
+          <span className="hide-m"><WalletSearch /></span>
+          {address ? (
+            <span className="p1">
+              <Link href={`/u/${address}`} style={{ display: "flex", alignItems: "center", gap: 10 }} aria-label="Your player card">
+                <Avatar seed={address} size={34} label="You" />
+                <span className="t"><small>P1 · CONNECTED</small><b>{shortAddr(address)}</b></span>
+              </Link>
+              <button type="button" className="ibtn hide-m" onClick={disconnectWallet} title="Disconnect" aria-label="Disconnect wallet">✕</button>
             </span>
-            {p && <b className={`mono ${p.pnl >= 0 ? "up" : "down"}`} style={{ fontSize: 12 }}>{usdShort(p.pnl)}</b>}
-          </Link>
+          ) : (
+            <ConnectButton />
+          )}
         </div>
       </div>
     </header>
@@ -58,13 +52,14 @@ export function Header() {
 export function Dock() {
   const path = usePathname();
   const toast = useToast();
+  const { address } = useWallet();
   return (
     <nav className="dock" aria-label="Tabs">
       <Link className={path === "/" ? "on" : ""} href="/" aria-label="The Pit"><HomeIcon /></Link>
-      <Link className={path === "/scores" ? "on" : ""} href="/scores" aria-label="Hi-scores"><SearchIcon /></Link>
-      <ToastButton className="plus" aria-label="Post a trade" message="Posting comes in a later level"><PlusIcon /></ToastButton>
-      <a href="#" onClick={(e) => { e.preventDefault(); toast(SOON); }} aria-label="Alerts"><BellIcon /><span className="dot" /></a>
-      <Link className={path === "/learn" ? "on" : ""} href="/learn" aria-label="How to play"><TradeBoxIcon /></Link>
+      <Link className={path === "/scores" ? "on" : ""} href="/scores" aria-label="Hi-scores and wallet search"><SearchIcon /></Link>
+      <ToastButton className="plus" aria-label="Post a trade" message="Posting needs an account, coming next"><PlusIcon /></ToastButton>
+      <a href="#" onClick={(e) => { e.preventDefault(); toast("Alerts need an account, coming next"); }} aria-label="Alerts"><BellIcon /></a>
+      <Link className={path === "/learn" ? "on" : ""} href={address ? `/u/${address}` : "/learn"} aria-label={address ? "Your player card" : "How to play"}><TradeBoxIcon /></Link>
     </nav>
   );
 }

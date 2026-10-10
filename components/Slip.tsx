@@ -1,14 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { PEOPLE, levelOf, type Post } from "@/lib/mock";
-import { fillText, livePosition } from "@/lib/positions";
+import type { MarketData } from "@/lib/hyperliquid";
+import { ago, levelOf, type ClosedTrade, type Player, type Position } from "@/lib/trading";
+import { livePos } from "@/lib/positions";
 import Avatar from "./Avatar";
-import { BellIcon, ReplyIcon, ShareIcon, VerifiedCheck } from "./Icons";
+import { BellIcon, ShareIcon, VerifiedCheck } from "./Icons";
 import { LikeButton } from "./Buttons";
 import { useMarket } from "./Market";
 import PostLink from "./PostLink";
-import TradeCard from "./TradeCard";
+import { ClosedCard, OpenCard } from "./TradeCard";
 import { ToastButton } from "./Toast";
 
 export const Flame = ({ n }: { n: number }) => n > 0 ? (
@@ -18,31 +19,40 @@ export const Flame = ({ n }: { n: number }) => n > 0 ? (
   </span>
 ) : null;
 
-// One post in the feed, shown as a "match" card.
-export default function Slip({ post }: { post: Post }) {
-  const { snap } = useMarket();
-  const u = PEOPLE[post.handle];
-  const p = post.trade.kind === "open" ? livePosition(post.trade.pos, snap) : null;
-  const ring = p ? (p.pnl >= 0 ? "up" : "down") : undefined;
-  const state = post.trade.kind === "open" ? "" : post.trade.move >= 0 ? " won" : " rekt";
+export function PlayerLine({ player, sub }: { player: Player; sub?: React.ReactNode }) {
   return (
-    <PostLink href={`/post/${post.id}`} className={`match click${state}`}>
+    <div className="t">
+      <Link className="nm" href={`/u/${player.address}`}>{player.name}{player.named && <VerifiedCheck />}</Link>
+      <div className="sub"><span className="tag lv">LV.{levelOf(player)}</span>{sub}</div>
+    </div>
+  );
+}
+
+type Item = { kind: "open"; player: Player; pos: Position } | { kind: "closed"; player: Player; trade: ClosedTrade };
+
+// One real trade in the feed, shown as a "match" card.
+export default function Slip({ item, market }: { item: Item; market?: MarketData | null }) {
+  const { snap } = useMarket();
+  const p = item.player;
+  const open = item.kind === "open";
+  const live = open ? livePos(item.pos, snap, market) : null;
+  const ring = live ? (live.pnl >= 0 ? "up" : "down") : undefined;
+  const state = open ? "" : item.trade.pnl >= 0 ? " won" : " rekt";
+  const href = open ? `/m/${p.address}/${encodeURIComponent(item.pos.coin)}` : `/u/${p.address}`;
+  return (
+    <PostLink href={href} className={`match click${state}`}>
       <div className="mh">
-        <Link href={`/u/${u.handle}`} aria-label={u.name}><Avatar handle={u.handle} size={40} ring={ring} /></Link>
-        <div className="t">
-          <Link className="nm" href={`/u/${u.handle}`}>{u.name}{u.verified && <VerifiedCheck />}</Link>
-          <div className="sub"><span className="tag lv">LV.{levelOf(u)}</span><span className="tag cl">{u.klass}</span><Flame n={u.streak} /><span>{post.time}</span></div>
-        </div>
+        <Link href={`/u/${p.address}`} aria-label={p.name}><Avatar seed={p.address} size={40} ring={ring} label={p.name} /></Link>
+        <PlayerLine player={p} sub={<span>{open ? "in a match now" : `${ago(item.trade.time)} ago`}</span>} />
       </div>
-      <div className="ctx">{post.context}</div>
-      {post.text && <p className="note">{fillText(post.text, p)}</p>}
-      <TradeCard id={`feed-${post.id}`} handle={post.handle} trade={post.trade} />
+      <div className="ctx">{open ? "Open position · live" : item.trade.pnl >= 0 ? "Closed a position · in profit" : "Closed a position · at a loss"}</div>
+      {open ? <OpenCard pos={item.pos} market={market} /> : <ClosedCard trade={item.trade} />}
+      <div className="vfoot"><span>✓ read from Hyperliquid</span><b>{p.address.slice(0, 6)}…{p.address.slice(-4)}</b></div>
       <div className="acts">
-        <LikeButton count={post.counts.likes} />
-        <ToastButton className="btn" aria-label="Chat" message="Chat comes in a later level"><ReplyIcon />{post.counts.replies}</ToastButton>
+        <LikeButton count={0} />
         <ToastButton className="btn" aria-label="Share" message="Link copied"><ShareIcon /></ToastButton>
         <span className="sp" />
-        <ToastButton className="btn cy" aria-label={`Get alerts when ${u.name} trades`} message="Trade alerts come in a later level"><BellIcon small />Tail</ToastButton>
+        <ToastButton className="btn cy" aria-label={`Get alerts when ${p.name} trades`} message="Alerts need an account, coming next"><BellIcon small />Tail</ToastButton>
       </div>
     </PostLink>
   );

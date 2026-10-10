@@ -1,14 +1,13 @@
 "use client";
 
-import { COIN_SYMBOL, PEOPLE, POSITIONS, type TradeRef } from "@/lib/mock";
-import { fmtLevel, fmtPx, money, pct, usd } from "@/lib/format";
-import { closedTrade, livePosition, type LivePosition } from "@/lib/positions";
+import type { MarketData } from "@/lib/hyperliquid";
+import { fmtLevel, fmtPx, moneyShort, pct, usdBig } from "@/lib/format";
+import { livePos } from "@/lib/positions";
+import type { ClosedTrade, Position } from "@/lib/trading";
 import { ChartToggle, useChartMode } from "./ChartMode";
-import { LockIcon } from "./Icons";
+import Coin from "./Coin";
 import LineChart, { type Level } from "./LineChart";
-import { useMarket } from "./Market";
-
-const Skel = () => <span className="skel" />;
+import { useCoin, useMarket } from "./Market";
 
 // A segmented bar, like a health bar in a game.
 export function Meter({ frac, color, segments = 12 }: { frac: number; color: string; segments?: number }) {
@@ -20,98 +19,91 @@ export function Meter({ frac, color, segments = 12 }: { frac: number; color: str
   );
 }
 
-// For an open trade: how far it is from the stop loss to the take profit,
-// or, without those, how much of the margin is still left ("HP").
-function progress(p: LivePosition) {
-  if (p.tpPx && p.slPx) {
-    return { label: ["SL", "TP"], frac: (p.mark - p.slPx) / (p.tpPx - p.slPx), text: "to target" };
-  }
-  const margin = p.size / p.lev;
-  return { label: ["HP", `${Math.round(Math.min(1, (margin + p.pnl) / margin) * 100)}%`], frac: (margin + p.pnl) / margin, text: "margin left" };
-}
-
-// One trade as an arcade card: market, live chart, numbers, score and badge.
-// Prices are live from Hyperliquid.
-export default function TradeCard({
-  id, handle, trade, chartHeight = 130, children,
-}: {
-  id: string; handle: string; trade: TradeRef; chartHeight?: number; children?: React.ReactNode;
-}) {
+// A live open position as an arcade card: market, chart, numbers, score, and a bar
+// showing how far it is from the stop loss to the take profit (or, without them,
+// how far from liquidation).
+export function OpenCard({ pos, market, chartHeight = 130, children }: { pos: Position; market?: MarketData | null; chartHeight?: number; children?: React.ReactNode }) {
+  useCoin(pos.coin);
   const { snap } = useMarket();
   const mode = useChartMode();
-  const def = trade.kind === "open" ? POSITIONS[trade.pos] : trade;
-  const side = def.side > 0 ? "long" : "short";
-  const p = trade.kind === "open" ? livePosition(trade.pos, snap) : null;
-  const c = trade.kind === "closed" ? closedTrade(trade, snap) : null;
-  const win = trade.kind === "closed" && trade.move >= 0;
+  const l = livePos(pos, snap, market);
+  const side = pos.szi > 0 ? "long" : "short";
+  const up = l.pnl >= 0;
 
-  const levels: Level[] = [];
-  if (p) {
-    levels.push({ v: p.entry, kind: "e", label: `Entry ${fmtPx(p.entry)}` });
-    if (trade.kind === "open" && !trade.hiddenLevels) {
-      if (p.tpPx) levels.push({ v: p.tpPx, kind: "t", label: `TP ${fmtLevel(p.tpPx)}` });
-      if (p.slPx) levels.push({ v: p.slPx, kind: "s", label: `SL ${fmtLevel(p.slPx)}` });
-    }
+  const levels: Level[] = [{ v: pos.entryPx, kind: "e", label: `Entry ${fmtPx(pos.entryPx)}` }];
+  if (pos.tp) levels.push({ v: pos.tp, kind: "t", label: `TP ${fmtLevel(pos.tp)}` });
+  if (pos.sl) levels.push({ v: pos.sl, kind: "s", label: `SL ${fmtLevel(pos.sl)}` });
+
+  // Bar: SL → TP when both are set, otherwise distance to liquidation ("HP").
+  let bar: { left: string; mid: string; right: string; frac: number } | null = null;
+  if (pos.tp && pos.sl) {
+    bar = { left: "SL", mid: "to target", right: "TP", frac: (l.mark - pos.sl) / (pos.tp - pos.sl) };
+  } else if (pos.liqPx && pos.liqPx > 0) {
+    const room = Math.abs(l.mark - pos.liqPx) / l.mark;
+    bar = { left: "HP", mid: `${(room * 100).toFixed(1)}% from liquidation`, right: `LIQ ${fmtLevel(pos.liqPx)}`, frac: Math.min(1, room / 0.5) };
   }
-  const prog = p ? progress(p) : null;
-  const dirColor = (up: boolean) => (up ? "var(--up)" : "var(--down)");
 
   return (
     <>
       <div className="mk">
-        <span className={`coin ${def.coin}`}>{COIN_SYMBOL[def.coin]}</span>
-        <span className="sym">{def.coin}-PERP</span>
-        <span className={`tag ${side}`}>{side} ×{def.lev}</span>
+        <Coin coin={pos.coin} />
+        <span className="sym">{pos.coin}-PERP</span>
+        <span className={`tag ${side}`}>{side} ×{pos.lev}</span>
+        {pos.levType === "isolated" && <span className="tag cy">isolated</span>}
       </div>
-
-      {trade.kind === "open" ? (
-        <>
-          <div className="chart-h"><span>Live · 6h of 5m</span><ChartToggle /></div>
-          <div className="chart">
-            {p ? (
-              <LineChart id={id} height={chartHeight} pts={p.pts} candles={p.candles} mode={mode} levels={levels} dir={p.pnl >= 0 ? "up" : "down"} entryIndex={p.entryIndex} />
-            ) : (
-              <div style={{ height: chartHeight }} />
-            )}
-          </div>
-          <div className="stats4">
-            <div><span>Entry</span><b>{p ? fmtPx(p.entry) : <Skel />}</b></div>
-            <div><span>Mark</span><b>{p ? fmtPx(p.mark) : <Skel />}</b></div>
-            <div><span>Size</span><b>{money(def.size)}</b></div>
-            <div><span>ROE</span><b className={p && p.pnl < 0 ? "down" : "up"}>{p ? pct(p.roe) : <Skel />}</b></div>
-          </div>
-          <div className="score">
-            <div><small>Score · unrealized PnL</small><span className={`big ${p && p.pnl < 0 ? "down" : "up"}`}>{p ? usd(p.pnl) : <Skel />}</span></div>
-          </div>
-          {p && prog && (
-            <div className="hp">
-              <div className="lbl"><span>{prog.label[0]}</span><span>{prog.text}</span><span>{prog.label[1]}</span></div>
-              <Meter frac={prog.frac} color={dirColor(p.pnl >= 0)} />
-            </div>
-          )}
-          {trade.hiddenLevels && <div className="hidden-lv"><LockIcon />TP / SL hidden until the match ends</div>}
-          <span className="badge live">Live</span>
-        </>
-      ) : (
-        <>
-          <div className="stats4">
-            <div><span>Entry</span><b>{c ? fmtPx(c.entry) : <Skel />}</b></div>
-            <div><span>Exit</span><b>{c ? fmtPx(c.exit) : <Skel />}</b></div>
-            <div><span>Held</span><b>{trade.held}</b></div>
-            <div><span>Fees</span><b>{trade.fees}</b></div>
-          </div>
-          <div className="score">
-            <div><small>Final score · realized PnL</small><span className={`big ${win ? "up" : "down"}`}>{c ? usd(c.pnl, 0) : <Skel />}</span></div>
-            <div className={`roe ${win ? "up" : "down"}`}>{c ? `${pct(c.roe)} ROE` : ""}</div>
-          </div>
-          <span className={`badge ${win ? "win" : "rekt"}`}>{win ? "WIN" : "REKT"}</span>
-          <span className={`burst${win ? " win" : ""}`} aria-hidden="true">{Array.from({ length: 6 }, (_, i) => <i key={i} />)}</span>
-        </>
+      <div className="chart-h"><span>Live · 6h of 5m</span><ChartToggle /></div>
+      <div className="chart">
+        {l.chart ? (
+          <LineChart id={`${pos.address}-${pos.coin}`} height={chartHeight} pts={l.chart.pts} candles={l.chart.candles} mode={mode} levels={levels} dir={up ? "up" : "down"} />
+        ) : (
+          <div style={{ height: chartHeight, display: "grid", placeItems: "center" }} className="muted mono">loading chart…</div>
+        )}
+      </div>
+      <div className="stats4">
+        <div><span>Entry</span><b>{fmtPx(pos.entryPx)}</b></div>
+        <div><span>Mark</span><b>{fmtPx(l.mark)}</b></div>
+        <div><span>Size</span><b>{moneyShort(pos.posValue)}</b></div>
+        <div><span>ROE</span><b className={up ? "up" : "down"}>{pct(l.roe)}</b></div>
+      </div>
+      <div className="score">
+        <div><small>Score · unrealized PnL</small><span className={`big ${up ? "up" : "down"}`}>{usdBig(l.pnl)}</span></div>
+      </div>
+      {bar && (
+        <div className="hp">
+          <div className="lbl"><span>{bar.left}</span><span>{bar.mid}</span><span>{bar.right}</span></div>
+          <Meter frac={bar.frac} color={up ? "var(--up)" : "var(--down)"} />
+        </div>
       )}
-
       {children}
+      <span className="badge live">Live</span>
+    </>
+  );
+}
 
-      <div className="vfoot"><span>✓ verified onchain</span><b>{PEOPLE[handle]?.wallet}</b></div>
+// A finished trade: WIN or REKT, with the real result.
+export function ClosedCard({ trade }: { trade: ClosedTrade }) {
+  const win = trade.pnl >= 0;
+  const side = trade.side > 0 ? "long" : "short";
+  const move = ((trade.exitPx - trade.entryPx) / trade.entryPx) * 100 * trade.side;
+  return (
+    <>
+      <div className="mk">
+        <Coin coin={trade.coin} />
+        <span className="sym">{trade.coin}-PERP</span>
+        <span className={`tag ${side}`}>{side}</span>
+      </div>
+      <div className="stats4">
+        <div><span>Entry ≈</span><b>{fmtPx(trade.entryPx)}</b></div>
+        <div><span>Exit</span><b>{fmtPx(trade.exitPx)}</b></div>
+        <div><span>Size</span><b>{moneyShort(trade.sz * trade.exitPx)}</b></div>
+        <div><span>Fees</span><b>{moneyShort(Math.abs(trade.fees))}</b></div>
+      </div>
+      <div className="score">
+        <div><small>Final score · realized PnL</small><span className={`big ${win ? "up" : "down"}`}>{usdBig(trade.pnl)}</span></div>
+        <div className={`roe ${win ? "up" : "down"}`}>{pct(move, 2)} price move</div>
+      </div>
+      <span className={`badge ${win ? "win" : "rekt"}`}>{win ? "WIN" : "REKT"}</span>
+      <span className={`burst${win ? " win" : ""}`} aria-hidden="true">{Array.from({ length: 6 }, (_, i) => <i key={i} />)}</span>
     </>
   );
 }
