@@ -477,3 +477,11 @@ svg.mini{width:100%;height:54px;display:block}
 .coin{border:2px solid rgba(255,255,255,.15);color:#fff;font-weight:800;display:grid;place-items:center;flex:none;letter-spacing:-.02em;overflow:hidden}
 .p1{gap:6px}
 @media (max-width:760px){.cell.s1 .pv{font-size:11px}.cell.s1{padding:8px}}
+
+/* ---------- composer ---------- */
+.compose.col{flex-direction:column;align-items:stretch;gap:10px}
+.compose textarea{flex:1;min-width:0;border:0;background:none;outline:none;resize:vertical;font:15px/1.5 var(--ui);min-height:48px}
+.compose .crow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-top:1px dashed var(--line);padding-top:10px}
+.compose select{height:30px;max-width:100%;background:var(--panel-2);border:1px solid var(--line-2);color:var(--text);font:500 12px var(--mono);padding:0 8px}
+.btn:disabled{opacity:.5;cursor:default}
+.cell.s1 .pv{font-size:clamp(11px,1.05vw,14px)}

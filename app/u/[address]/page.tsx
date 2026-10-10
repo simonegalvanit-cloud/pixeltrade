@@ -1,14 +1,15 @@
 import { notFound } from "next/navigation";
 import Coin from "@/components/Coin";
-import { FollowButton } from "@/components/Buttons";
-import { BellIcon, VerifiedCheck, WalletIcon } from "@/components/Icons";
+import { Tail, TailCounts } from "@/components/Social";
+import PostSlip from "@/components/PostSlip";
+import { VerifiedCheck, WalletIcon } from "@/components/Icons";
 import { SeedMarkets } from "@/components/Market";
 import { LiveAvatar, LiveTotal, PnlHistory } from "@/components/PlayerLive";
 import PostLink from "@/components/PostLink";
 import { Flame } from "@/components/Slip";
-import { ToastButton } from "@/components/Toast";
 import { OpenCard } from "@/components/TradeCard";
 import { getCandles, getPlayer, getPortfolio, getPositions, getTrades } from "@/lib/data";
+import { latestPosts } from "@/lib/db";
 import { money, moneyShort, pct, usd, usdBig } from "@/lib/format";
 import { isAddress, shortAddr, type MarketData } from "@/lib/hyperliquid";
 import { ago, classOf, dailyPnl, levelOf, streakOf, winRate, xpOf, type ClosedTrade } from "@/lib/trading";
@@ -66,11 +67,12 @@ export default async function PlayerPage({ params }: { params: Promise<{ address
   if (!isAddress(raw)) notFound();
   const address = raw.toLowerCase();
 
-  const [player, book, trades, portfolio] = await Promise.all([
+  const [player, book, trades, portfolio, posts] = await Promise.all([
     getPlayer(address),
     getPositions(address, true).catch(() => null),
     getTrades(address, 90).catch(() => [] as ClosedTrade[]),
     getPortfolio(address),
+    latestPosts(10, address),
   ]);
   const positions = book?.positions ?? [];
   // Money can sit in spot or vaults, outside the perps account; fall back to the leaderboard's figure.
@@ -119,12 +121,12 @@ export default async function PlayerPage({ params }: { params: Promise<{ address
           <small>30-DAY SCORE</small>
           <b className={month >= 0 ? "" : "down"} style={month < 0 ? { color: "var(--down)", textShadow: "0 0 20px var(--down)" } : undefined}>{usdBig(month)}</b>
           <div className="acts2">
-            <ToastButton className="btn icon" aria-label="Alerts" message="Alerts need an account, coming next"><BellIcon small /></ToastButton>
-            <FollowButton />
+            <Tail wallet={address} />
           </div>
         </div>
         <div className="ff">
           <LiveTotal positions={positions} />
+          <TailCounts wallet={address} />
           {p.perf.month.roi !== 0 && <span>30d ROI <b>{pct(p.perf.month.roi * 100)}</b></span>}
           <span>All-time PnL <b>{usdBig(p.perf.allTime.pnl)}</b></span>
         </div>
@@ -147,6 +149,17 @@ export default async function PlayerPage({ params }: { params: Promise<{ address
               <PostLink key={pos.coin} href={`/m/${address}/${encodeURIComponent(pos.coin)}`} className="match click">
                 <OpenCard pos={pos} market={markets[pos.coin]} />
               </PostLink>
+            ))}
+          </div>
+        </>
+      )}
+
+      {posts.length > 0 && (
+        <>
+          <div className="sec-h"><h2>CALLS</h2><small>{posts.length} post{posts.length > 1 ? "s" : ""}</small></div>
+          <div className="board" style={{ marginBottom: 20 }}>
+            {posts.map((post) => (
+              <PostSlip key={post.id} post={post} player={p} pos={positions.find((x) => x.coin === post.coin) ?? null} market={post.coin ? markets[post.coin] : null} />
             ))}
           </div>
         </>

@@ -2,11 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import Avatar from "@/components/Avatar";
 import Coin from "@/components/Coin";
-import { FollowButton, LikeButton } from "@/components/Buttons";
-import { BackIcon, BellIcon } from "@/components/Icons";
+import { Chat, GG, Tail } from "@/components/Social";
+import { BackIcon } from "@/components/Icons";
 import { SeedMarkets } from "@/components/Market";
 import { Flame, PlayerLine } from "@/components/Slip";
-import { ToastButton } from "@/components/Toast";
 import { ClosedCard, OpenCard } from "@/components/TradeCard";
 import { getCandles, getFills, getPlayer, getPositions } from "@/lib/data";
 import { fmtLevel, fmtPx, money, moneyShort, usd } from "@/lib/format";
@@ -55,8 +54,7 @@ export default async function MatchPage({ params }: { params: Promise<{ address:
           <div className="author">
             <Link href={`/u/${address}`}><Avatar seed={address} size={52} label={player.name} /></Link>
             <PlayerLine player={player} sub={<><span className="tag cl">{klass}</span><Flame n={streakOf(trades)} /></>} />
-            <ToastButton className="btn icon" aria-label="Alerts" message="Alerts need an account, coming next"><BellIcon small /></ToastButton>
-            <FollowButton />
+            <Tail wallet={address} />
           </div>
 
           {pos ? (
@@ -114,18 +112,16 @@ export default async function MatchPage({ params }: { params: Promise<{ address:
             )}
             <div className="vfoot"><span>✓ verified onchain</span><b><Coin coin={coin} size={16} /></b></div>
             <div className="acts">
-              <LikeButton count={0} />
+              <GG target={`pos:${address}:${coin}`} />
               <span className="sp" />
-              <ToastButton className="btn cy" message="Alerts need an account, coming next"><BellIcon small />Tail</ToastButton>
+              <Tail wallet={address} small />
             </div>
           </div>
         </div>
 
         <section className="notes">
           <h2>CHAT</h2>
-          <div className="chatbox">
-            <p className="muted" style={{ padding: "8px 12px", margin: 0 }}>Chat, GGs and follows are next: they need perpy accounts (a small database). Trades and prices on this page are already real.</p>
-          </div>
+          <Chat target={`pos:${address}:${coin}`} />
         </section>
       </div>
     </>

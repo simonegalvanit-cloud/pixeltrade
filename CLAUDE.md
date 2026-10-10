@@ -35,6 +35,14 @@ Next.js (App Router, TypeScript), Supabase (later), Vercel.
 - components/Market.tsx: live store (websocket allMids + candles, reconnect,
   polling backup). useMarket() for prices, useCoin(coin) loads candles.
 - components/Wallet.tsx: connect a browser wallet (EIP-6963), wallet search.
+- Accounts: lib/session.ts (sign-in message, HMAC-signed cookies), app/api/auth/*
+  (nonce → wallet signs → verify with viem → session). components/Session.tsx.
+- Database: supabase/schema.sql (posts, follows, ggs, comments; RLS on, no
+  policies: only the server's secret key can read/write). lib/db.ts.
+  app/api/{posts,follow,gg,comments,social}. components/Social.tsx (GG, Tail,
+  Chat, Share), Composer.tsx, PostSlip.tsx, Feed.tsx, /p/[id] post page.
+- Env vars (Vercel + .env.local, see .env.example): SUPABASE_URL,
+  SUPABASE_SECRET_KEY, SESSION_SECRET. Without them the social parts switch off.
 - components/: TradeCard (OpenCard / ClosedCard), Slip (feed card), Pit, Side,
   Tape, Header + Dock, ScoreTable, PlayerLive, Avatar (sprite from address), Coin.
 - app/globals.css: all styles; color tokens at the top.
@@ -44,5 +52,7 @@ Next.js (App Router, TypeScript), Supabase (later), Vercel.
 - REAL DATA: the Pit, feed, player cards, match pages and hi-scores all come
   from real Hyperliquid wallets. Prices stream live. Bots filtered out.
 - Wallet connect: P1 = your wallet, "Your book" shows your live positions.
-- Not yet (needs a database + sign-in, plan: Supabase + Sign-In with Ethereum):
-  written posts/theses, follows, GG counts, chat, alerts.
+- Accounts built: sign in with wallet, post calls (with a real position
+  attached, verified on Hyperliquid), Tail (follow), GG, chat, Tailing feed.
+- Not yet: alerts (push/Telegram/email when someone you tail trades),
+  smart-contract wallets for sign-in (only regular wallets for now).
